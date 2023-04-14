@@ -31,11 +31,11 @@ namespace http_server {
             return Close();
         }
         if (ec) {
-            return logger_.LogError(ec, "read"sv);
+            return logger_handler::LogError(ec, "read"sv);
         }
 
         // Предварительно логируем полученный запрос
-        logger_.LogRequest(std::ref(request_), HostAdress());
+        logger_handler::LogRequest(std::ref(request_), HostAdress());
         // Активируем временную точку отсчёта времени на выполнение запроса
         start_ts_ = std::chrono::system_clock::now();
         // Передаем выполнение запроса классу-наследнику
@@ -49,7 +49,7 @@ namespace http_server {
 
     void SessionBase::OnWrite(bool close, beast::error_code ec, [[maybe_unused]] std::size_t bytes_written) {
         if (ec) {
-            return logger_.LogError(ec, "write"sv);
+            return logger_handler::LogError(ec, "write"sv);
         }
 
         if (close) {

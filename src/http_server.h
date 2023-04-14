@@ -16,11 +16,6 @@ namespace http_server {
     namespace http = beast::http;
     namespace sys = boost::system;
 
-#define LOGGER logger_handler::LoggerHandler
-#define LOGGER_REFERENCE logger_handler::LoggerHandler&
-
-    //using log = logger_handler;
-
     class SessionBase {
     public:
         // Запрещаем копирование и присваивание объектов SessionBase и его наследников
@@ -30,8 +25,8 @@ namespace http_server {
         void Run();
 
     protected:
-        explicit SessionBase(tcp::socket&& socket, LOGGER_REFERENCE logger)
-            : stream_(std::move(socket)), logger_(logger) {
+        explicit SessionBase(tcp::socket&& socket)
+            : stream_(std::move(socket)){
         }
 
         using HttpRequest = http::request<http::string_body>;
@@ -41,9 +36,9 @@ namespace http_server {
             // Как только ответ пришёл в данный метод замеряем время получения ответа на запрос
             end_ts_ = std::chrono::system_clock::now();
             // Создаём запись о успешном получении ответа
-            logger_.LogResponse(
+            logger_handler::LogResponse(
                 response.result_int(), response.at(http::field::content_type),
-                    std::chrono::duration_cast<std::chrono::milliseconds>(end_ts_ - start_ts_).count(), HostAdress());
+                std::chrono::duration_cast<std::chrono::milliseconds>(end_ts_ - start_ts_).count(), HostAdress());
 
             // Запись выполняется асинхронно, поэтому response перемещаем в область кучи
             auto safe_response = std::make_shared<http::response<Body, Fields>>(std::move(response));
@@ -63,7 +58,6 @@ namespace http_server {
         beast::tcp_stream stream_;
         beast::flat_buffer buffer_;
         HttpRequest request_;
-        LOGGER_REFERENCE logger_;
         std::chrono::system_clock::time_point start_ts_;
         std::chrono::system_clock::time_point end_ts_;
 
@@ -85,8 +79,8 @@ namespace http_server {
     class Session : public SessionBase, public std::enable_shared_from_this<Session<RequestLambda>> {
     public:
         template <typename RLambda>
-        Session(tcp::socket&& socket, LOGGER_REFERENCE logger, RLambda&& request_lambda)
-            : SessionBase(std::move(socket), std::ref(logger))
+        Session(tcp::socket&& socket, RLambda&& request_lambda)
+            : SessionBase(std::move(socket))
             , request_lambda_(std::forward<RLambda>(request_lambda)) {
         }
 
@@ -118,12 +112,11 @@ namespace http_server {
     class Listener : public std::enable_shared_from_this<Listener<RequestLambda>> {
     public:
         template <typename RLambda>
-        Listener(net::io_context& ioc, const tcp::endpoint& endpoint, RLambda&& request_lambda, LOGGER_REFERENCE logger)
+        Listener(net::io_context& ioc, const tcp::endpoint& endpoint, RLambda&& request_lambda)
             : ioc_(ioc)
             // Обработчики асинхронных операций acceptor_ будут вызываться в своём strand
             , acceptor_(net::make_strand(ioc))
-            , request_lambda_(std::forward<RLambda>(request_lambda))
-            , logger_(logger) {
+            , request_lambda_(std::forward<RLambda>(request_lambda)) {
             // Открываем acceptor, используя протокол (IPv4 или IPv6), указанный в endpoint
             acceptor_.open(endpoint.protocol());
 
@@ -138,7 +131,7 @@ namespace http_server {
             // Благодаря этому новые подключения будут помещаться в очередь ожидающих соединений
             acceptor_.listen(net::socket_base::max_listen_connections);
             // После активации сервера выдаём лог-запись о запуске
-            logger_.LogStartup(endpoint.port(), endpoint.address());
+            logger_handler::LogStartup(endpoint.port(), endpoint.address());
         }
 
         void Run() {
@@ -149,7 +142,6 @@ namespace http_server {
         net::io_context& ioc_;
         tcp::acceptor acceptor_;
         RequestLambda request_lambda_;
-        LOGGER_REFERENCE logger_;
 
         void DoAccept();
 
@@ -157,7 +149,7 @@ namespace http_server {
         void OnAccept(sys::error_code ec, tcp::socket socket);
 
         void AsyncRunSession(tcp::socket&& socket) {
-            std::make_shared<Session<RequestLambda>>(std::move(socket), logger_, request_lambda_)->Run();
+            std::make_shared<Session<RequestLambda>>(std::move(socket), request_lambda_)->Run();
         }
     };
 
@@ -183,7 +175,7 @@ namespace http_server {
     void Listener<RequestLambda>::OnAccept(sys::error_code ec, tcp::socket socket) {
 
         if (ec) {
-            return logger_.LogError(ec, "accept"sv);
+            return logger_handler::LogError(ec, "accept"sv);
         }
 
         // Асинхронно обрабатываем сессию
@@ -197,12 +189,12 @@ namespace http_server {
     // Лямбда обработки запроса и ссылфку на логгер
 
     template <typename RequestLambda>
-    void ServeHttp(net::io_context& ioc, const tcp::endpoint& endpoint, LOGGER_REFERENCE logger, RequestLambda&& lambda) {
+    void ServeHttp(net::io_context& ioc, const tcp::endpoint& endpoint, RequestLambda&& lambda) {
         // При помощи decay_t исключим ссылки из типа RequestHandler,
         // чтобы Listener хранил RequestHandler по значению
         using MyListener = Listener<std::decay_t<RequestLambda>>;
 
-        std::make_shared<MyListener>(ioc, endpoint, std::forward<RequestLambda>(lambda), std::ref(logger))->Run();
+        std::make_shared<MyListener>(ioc, endpoint, std::forward<RequestLambda>(lambda))->Run();
     }
 
 }  // namespace http_server
