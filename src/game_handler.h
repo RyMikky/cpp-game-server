@@ -13,39 +13,10 @@
 namespace game_handler {
 
 	namespace fs = std::filesystem;
+	namespace beast = boost::beast;
+	namespace http = beast::http;
 
 	class GameHandler; // forward-defenition
-
-	/*class Player {
-	public:
-		Player() = default;
-
-		Player(const Player&) = delete;
-		Player& operator=(const Player&) = delete;
-		Player(Player&&) = default;
-		Player& operator=(Player&&) = default;
-
-		Player(uint16_t id, std::string_view name, const Token* token)
-			: id_(id), name_(name), token_(token) {
-		};
-
-		uint16_t get_player_id() const {
-			return id_;
-		}
-		std::string_view get_player_name() const {
-			return name_;
-		}
-		std::string_view get_player_token() const {
-			return **token_;
-		}
-
-	private:
-		uint16_t id_ = 65535;
-		std::string name_ = "dummy"s;
-		const Token* token_ = nullptr;
-	};
-
-	using PlayerPtr = const Player*;*/
 
 	class TokenHasher {
 	public:
@@ -97,15 +68,6 @@ namespace game_handler {
 		std::hash<std::string> _hasher;
 	};
 
-	//struct MapPtrHasher {
-	//	size_t operator()(const model::Map* map) const {
-	//		// ¬озвращает хеш значени€, хран€щегос€ внутри value
-	//		std::string name = map->GetName();
-	//		std::string id = *(map->GetId());
-	//		return std::hash<std::string>(name) + std::hash<std::string>(id);
-	//	}
-	//};
-
 	// структура хранени€ и изначального создани€ игровых сессий
 	using GameInstance = std::vector<std::shared_ptr<GameSession>>;
 	// структура дл€ контрол€ инстансов игровых сессий по картам
@@ -123,11 +85,20 @@ namespace game_handler {
 	public:
 		// отдаЄм создание игровой модели класус обработчику игры
 		explicit GameHandler(const fs::path& configuration) : io_context_(), strand_(io_context_.get_executor()){
-			game_ = json_loader::LoadGame(configuration);
+			game_simple_ = json_loader::LoadGame(configuration);
 		}
 
 		// ќбеспечивает вход игрока в игровую сессию
 		std::string enter_to_game_session(std::string_view name, std::string_view map);
+
+		// ¬озвращает ответ на запрос по присоединению к игре
+		http_handler::Response join_game_response(http_handler::StringRequest&& req);
+		// ¬озвращает ответ на запрос по поиску конкретной карты
+		http_handler::Response find_map_response(http_handler::StringRequest&& req, std::string_view find_request_line);
+		// ¬озвращает ответ со списком загруженных карт
+		http_handler::Response map_list_response(http_handler::StringRequest&& req);
+		// ¬озвращает ответ, что запрос некорректный
+		http_handler::Response bad_request_response(http_handler::StringRequest&& req, std::string_view code, std::string_view message);
 
 	protected: // протектед блок доступен только friend class -у дл€ обратной записи данных и получени€ уникальных токенов
 		/* 
@@ -138,7 +109,7 @@ namespace game_handler {
 		bool reset_token(std::string_view token);
 
 	private:
-		model::Game game_;
+		model::Game game_simple_;
 
 		// контекст и стренд необхордимы дл€ работы в асинхронном режиме
 		// так как обработчик "выдаЄт" уникальные токены, то возможна ситуаци€, когда с двух параллельных потоков прилетит запрос
@@ -152,6 +123,28 @@ namespace game_handler {
 
 		const Token* get_unique_token_impl(std::shared_ptr<GameSession> session);
 		bool reset_token_impl(std::string_view token);
+
+		// ¬озвращает ответ, что упом€нута€ карта не найдена
+		http_handler::Response map_not_found_response_impl(http_handler::StringRequest&& req);
+		// ¬озвращает ответ, что запрошенный метод не ражрешен, доступный указываетс€ в аргументе allow
+		http_handler::Response method_not_allowed_impl(http_handler::StringRequest&& req, std::string_view allow);
+		
+		template <typename ...Methods>
+		// ¬озвращает ответ, что запрошенный метод не ражрешен, доступный указываетс€ в аргументе allow
+		http_handler::Response method_not_allowed_impl(http_handler::StringRequest&& req, Methods ...methods);
+
 	};
+
+	template <typename ...Methods>
+	// ¬озвращает ответ, что запрошенный метод не ражрешен, доступный указываетс€ в аргументе allow
+	http_handler::Response GameHandler::method_not_allowed_impl(http_handler::StringRequest&& req, Methods ...methods) {
+		http_handler::StringResponse response(http::status::method_not_allowed, req.version());
+		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
+		response.set(http::field::cache_control, "no-cache");
+		response.set(http::field::allow, (methods, ...));
+		response.body() = json_detail::GetErrorString("invalidMethod"sv, ("Only "s + std::string((methods, ...)) + " method is expected"s));
+
+		return response;
+	}
 
 } //namespace game_handler

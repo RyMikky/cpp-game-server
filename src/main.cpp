@@ -55,13 +55,14 @@ int main(int argc, const char* argv[]) {
         logger_handler::detail::BoostLogBaseSetup(std::cout);
 
         // 1. Загружаем карту из файла и построить модель игры
-        model::Game game = json_loader::LoadGame(argv[1]);
+        // времянка подгружающая игровоую модель по старому
+        model::Game game_simple = json_loader::LoadGame(argv[1]);
 
-        // времянка подгружающая игровоую модель в обработчик на момент написания
-        game_handler::GameHandler g_handler{ argv[1] };
+        game_handler::GameHandler game{ argv[1] };
 
         // 2. Загружаем данные в обработчик ресурсов
-        resource_handler::ResourceHandler resource = resource_handler::detail::LoadFiles( argv[2]);
+        resource_handler::ResourceHandler resource{ argv[2] };
+        //resource_handler::ResourceHandler resource = resource_handler::detail::LoadFiles( argv[2]);
 
         // 3. Инициализируем io_context
         const unsigned num_threads = std::thread::hardware_concurrency();
@@ -77,7 +78,7 @@ int main(int argc, const char* argv[]) {
             });
 
         // 5. Создаём обработчик HTTP-запросов и связываем его с моделью игры
-        http_handler::RequestHandler request_handler{ game, resource, g_handler };
+        http_handler::RequestHandler request_handler{ game, resource, game_simple };
 
         // 6. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
         const auto address = net::ip::make_address("0.0.0.0");

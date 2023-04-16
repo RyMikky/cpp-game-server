@@ -1,0 +1,4 @@
+{
+   "code": "invalidMethod", 
+   "message": "Only POST method is expected"
+} 

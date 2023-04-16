@@ -34,29 +34,4 @@ namespace game_handler {
 
 	using Token = util::Tagged<std::string, detail::TokenTag>;
 
-
-
-	/*class Token {
-	public:
-
-	protected:
-		explicit Token(std::string label) 
-			: token_label_(label){
-			token_32_hex_ = detail::GenerateToken32Hex();
-		}
-
-	private:
-		std::string token_label_;
-		std::string token_32_hex_;
-	};
-
-
-	class sToken : public Token {
-	public:
-		explicit sToken(std::string label) : Token(label) {
-
-		}
-	};*/
-
-
 } //namespace game_handler

@@ -119,19 +119,17 @@ namespace json_detail {
 		result.emplace("buildings", GetMapBuilds(data));
 		result.emplace("offices", GetMapOffices(data));
 
-
 		return json::serialize(result);
 	}
 
-	//// возвращает строкове предаставление json-словаря с информацией о новом загруженном игроке
-	//std::string GetNewPlayerInfo(game_handler::PlayerPtr player) {
-	//	//json::object result;          // базовый ресурс ответа
+	// возвращает строкове предаставление json-словаря с информацией о новом загруженном игроке
+	std::string GetNewPlayerInfo(game_handler::PlayerPtr player) {
+		json::object result;          // базовый ресурс ответа
 
-	//	//result.emplace("authToken", std::string(player->get_player_token()));
-	//	//result.emplace("playerId", (int)player->get_player_id());
+		result.emplace("authToken", std::string(player->get_player_token()));
+		result.emplace("playerId", (int)player->get_player_id());
 
-	//	//return json::serialize(result);
-	//	return {};
-	//}
+		return json::serialize(result);
+	}
 
 } // namespace json_detail

@@ -4,6 +4,17 @@
 
 namespace resource_handler {
 
+	ResourceHandler::ResourceHandler(const char* main_root) {
+
+		std::string path_line(main_root);
+		// добавляем слеш, если его не поставили
+		if (path_line.back() != '/' && path_line.back() != '\\') {
+			path_line.push_back('/');
+		}
+
+		SetRootDirectory(path_line);
+	}
+
 	ResourceHandler::ResourceHandler(const fs::path& file_path) {
 		SetRootDirectory(file_path);
 	}

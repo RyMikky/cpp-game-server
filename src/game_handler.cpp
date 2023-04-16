@@ -67,6 +67,106 @@ namespace game_handler {
 		return {};
 	}
 
+	// Возвращает ответ на запрос по присоединению к игре
+	http_handler::Response GameHandler::join_game_response(http_handler::StringRequest&& req) {
+
+		if (req.method_string() != http_handler::Method::POST) {
+			// сюда вставить респонс о недопустимом типе
+			return method_not_allowed_impl(std::move(req), http_handler::Method::POST);
+		}
+
+		try
+		{
+
+			/*for (const auto& header : req) {
+				std::cout << "  "sv << header.name_string() << ": "sv << header.value() << std::endl;
+			}*/
+
+			auto body_iter = req.find("Body");
+
+			if (body_iter == req.end()) {
+				// если нет тела запроса, тогда запрашиваем
+				return bad_request_response(std::move(req), 
+					"invalidArgument"sv, "Header body whit two arguments <userName> and <mapId> expected"sv);
+			}
+			std::string body_string{ body_iter->value().begin(), body_iter->value().end() };
+
+			// парсим тело запроса, все исключения в процессе будем ловить в catch_блоке
+			boost::json::value req_data = json_detail::ParseTextToBoostJson(body_string);
+
+			// если в блоке вообще нет графы "userName" или "mapId"
+			if (!req_data.as_object().count("userName") || !req_data.as_object().count("mapId")) {
+				return bad_request_response(std::move(req), "invalidArgument"sv, "Two arguments <userName> and <mapId> expected"sv);
+			}
+
+			// если в "userName" пустота
+			if (req_data.as_object().at("userName") == "") {
+				return bad_request_response(std::move(req), "invalidArgument"sv, "Invalid name"sv);
+			}
+
+			// ищем запрошенную карту
+			auto map = game_simple_.FindMap(
+				model::Map::Id{ std::string(
+					req_data.as_object().at("mapId").as_string()) });
+
+			if (map == nullptr) {
+				// если карта не найдена, то кидаем отбойник
+				return map_not_found_response_impl(std::move(req));
+			}
+		}
+		catch (const std::exception&)
+		{
+
+		}
+		
+
+		std::string player_name, game_map;
+		
+		return {};
+	}
+	// Возвращает ответ на запрос по поиску конкретной карты
+	http_handler::Response GameHandler::find_map_response(http_handler::StringRequest&& req, std::string_view find_request_line) {
+
+		// ищем запрошенную карту
+		auto map = game_simple_.FindMap(model::Map::Id{ std::string(find_request_line) });
+
+		if (map == nullptr) {
+			// если карта не найдена, то кидаем отбойник
+			return map_not_found_response_impl(std::move(req));
+		}
+		else {
+
+			http_handler::StringResponse response(http::status::ok, req.version());
+			response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
+			response.set(http::field::cache_control, "no-cache");
+
+			// загружаем тело ответа из жидомасонского блока по полученному выше блоку параметров карты
+			response.body() = json_detail::GetMapInfo(map);
+
+			return response;
+		}
+
+	}
+	// Возвращает ответ со списком загруженных карт
+	http_handler::Response GameHandler::map_list_response(http_handler::StringRequest&& req) {
+		http_handler::StringResponse response(http::status::ok, req.version());
+		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
+		response.set(http::field::cache_control, "no-cache");
+		response.body() = json_detail::GetMapList(game_simple_.GetMaps());
+
+		return response;
+	}
+	// Возвращает ответ, что запрос некорректный
+	http_handler::Response GameHandler::bad_request_response(
+		http_handler::StringRequest&& req, std::string_view code, std::string_view message) {
+		http_handler::StringResponse response(http::status::bad_request, req.version());
+		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
+		response.set(http::field::cache_control, "no-cache");
+		response.body() = json_detail::GetErrorString(code, message/*"badRequest"sv, "Bad request"sv*/);
+
+		return response;
+	}
+
 	const Token* GameHandler::get_unique_token(std::shared_ptr<GameSession> session) {
 
 		const Token* result = nullptr;
@@ -105,18 +205,8 @@ namespace game_handler {
 
 	bool GameHandler::reset_token_impl(std::string_view token) {
 		Token remove{ std::string(token) };
-		//// пользуюсь поиском чтобы получить иттератор с конкретной парой указатель/сессия
-		//auto it = std::find(token_list_.begin(), token_list_.end(), remove);
 
-		//if (it != token_list_.end()) {
-		//	// запрашиваю удаление по найденному указателю
-		//	token_list_.at(remove)->remove_player(&it->first);
-		//	// удаляю запись из архива
-		//	return token_list_.erase(remove);
-		//}
-		//else {
-		//	return false;
-		//}
+		// TODO Заглушка, скорее всего корректно работать не будет, надо переделать + удаление в GameSession
 
 		if (token_list_.count(remove)) {
 			token_list_.at(remove)->remove_player(&remove);
@@ -127,4 +217,25 @@ namespace game_handler {
 		}
 	}
 
+	// Возвращает ответ, что упомянутая карта не найдена
+	http_handler::Response GameHandler::map_not_found_response_impl(http_handler::StringRequest&& req) {
+		http_handler::StringResponse response(http::status::not_found, req.version());
+		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
+		response.set(http::field::cache_control, "no-cache");
+		response.body() = json_detail::GetErrorString("mapNotFound"sv, "Map not found"sv);
+
+		return response;
+	}
+
+	// Возвращает ответ, что запрошенный метод не ражрешен, доступный указывается в аргументе allow
+	http_handler::Response GameHandler::method_not_allowed_impl(http_handler::StringRequest&& req, std::string_view allow) {
+		http_handler::StringResponse response(http::status::method_not_allowed, req.version());
+		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
+		response.set(http::field::cache_control, "no-cache");
+		response.set(http::field::allow, allow);
+		response.body() = json_detail::GetErrorString("invalidMethod"sv, ("Only "s + std::string(allow) + " method is expected"s));
+
+		return response;
+	}
+	
 } //namespace game_handler

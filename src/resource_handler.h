@@ -10,6 +10,7 @@ namespace resource_handler {
 	public:
 
 		ResourceHandler() = delete;
+		explicit ResourceHandler(const char* main_root);
 		explicit ResourceHandler(const fs::path& file_path);
 		ResourceHandler(const ResourceHandler&) = delete;
 		ResourceHandler(ResourceHandler&&) = default;

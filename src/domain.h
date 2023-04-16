@@ -69,6 +69,14 @@ namespace http_handler {
         constexpr static std::string_view APP_UNKNOW = "application/octet-stream"sv;  // для .unknow
     };
 
+    struct Method {
+        Method() = delete;
+
+        constexpr static std::string_view GET = "GET"sv;
+        constexpr static std::string_view HEAD = "HEAD"sv;
+        constexpr static std::string_view POST = "POST"sv;
+    };
+
 } // namespace http_handler
 
 namespace resource_handler {

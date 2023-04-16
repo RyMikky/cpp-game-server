@@ -33,6 +33,14 @@ namespace test {
 		void TestApiMapNotFound();
 		void TestApiBadRequest();
 		void TestApiGameLogin();
+
+		void TestApiGameLoginMissName();
+		void TestApiGameLoginInvalidName();
+		void TestApiGameLoginMissMap();
+		void TestApiGameLoginMapNotFound();
+		
+		void TestApiGameLoginInvalidMethod();
+
 	};
 
 } // namespace test

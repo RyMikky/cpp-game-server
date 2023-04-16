@@ -49,21 +49,24 @@ namespace http_handler {
             return MakeStringResponse(status, text, req.version(), req.keep_alive());
         };
 
-        // получаем метод поступившего запроса
-        http::verb req_method = req.method();
+        // обработка get, head, post будет в другом месте
+        return RequestParser(std::move(req));
 
-        switch (req_method)
-        {
-        case boost::beast::http::verb::get:
-            [[fallthrough]];
-        case boost::beast::http::verb::head:
-            // передаем обработку в парсер запросов
-            return RequestParser(std::move(req));
+        //// получаем метод поступившего запроса
+        //http::verb req_method = req.method();
 
-        default:
-            // во всех прочих случаях
-            return text_response(http::status::method_not_allowed, "Invalid method"sv);
-        }
+        //switch (req_method)
+        //{
+        //case boost::beast::http::verb::get:
+        //    [[fallthrough]];
+        //case boost::beast::http::verb::head:
+        //    // передаем обработку в парсер запросов
+        //    return RequestParser(std::move(req));
+
+        //default:
+        //    // во всех прочих случаях
+        //    return text_response(http::status::method_not_allowed, "Invalid method"sv);
+        //}
     }
 
 
@@ -241,7 +244,7 @@ namespace http_handler {
     Response RequestHandler::ApiFindMapResponse(StringRequest&& req, std::string_view find_request_line) {
 
         // ищем запрошенную карту
-        auto map = game_.FindMap(model::Map::Id{ std::string(find_request_line) });
+        auto map = game_simple_.FindMap(model::Map::Id{ std::string(find_request_line) });
 
         if (map == nullptr) {
             // если карта не найдена, то кидаем отбойник
@@ -263,7 +266,7 @@ namespace http_handler {
     Response RequestHandler::ApiMapsListResponse(StringRequest&& req) {
         StringResponse response(http::status::ok, req.version());
         response.set(http::field::content_type, ContentType::APP_JSON);
-        response.body() = json_detail::GetMapList(game_.GetMaps());
+        response.body() = json_detail::GetMapList(game_simple_.GetMaps());
 
         return response;
     }
@@ -291,24 +294,35 @@ namespace http_handler {
 
         if (api_request_line.size() == 0) {
             // если предается голое "api", то вызываем ответ по ошибке
-            return ApiBadRequestResponse(std::move(req));
+            return game_.bad_request_response(std::move(req), "badRequest"sv, "Bad request"sv);
+            //return ApiBadRequestResponse(std::move(req));
         }
 
         if (api_request_line == "/v1/maps"sv) {
             // выводим список доступных карт
-            return ApiMapsListResponse(std::move(req));
+            return game_.map_list_response(std::move(req));
+            //return ApiMapsListResponse(std::move(req));
+        }
+
+        if (api_request_line == "/v1/game/join"sv) {
+            // обрабатываем запрос по присооединению к игре
+            return game_.join_game_response(std::move(req));
         }
 
         // важный момент парсинга - блок сработает только если строка больше 9 символов и первые слова "/v1/maps/"
         // по идее сюда можно добавлять разные элементы, если их будет много то имеет смысл сделать специализированный парсер
         if (api_request_line.size() >= 9 && std::string{ api_request_line.begin(),  api_request_line.begin() + 9 } == "/v1/maps/"sv) {
             // отправляемся на поиски запрошенной карты
-            return ApiFindMapResponse(std::move(req),
+            return game_.find_map_response(std::move(req),
                 { api_request_line.begin() + 9, api_request_line.end() });
+
+            /*return ApiFindMapResponse(std::move(req),
+                { api_request_line.begin() + 9, api_request_line.end() });*/
         }
 
         // на крайний случай просто скажем, что запрос плохой
-        return ApiBadRequestResponse(std::move(req));
+        return game_.bad_request_response(std::move(req), "badRequest"sv, "Bad request"sv);
+        //return ApiBadRequestResponse(std::move(req));
     }
 
 }  // namespace http_handler

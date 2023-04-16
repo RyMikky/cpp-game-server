@@ -16,8 +16,8 @@ namespace http_handler {
 
     class RequestHandler {
     public:
-        RequestHandler(model::Game& game, res::ResourceHandler& resource, game::GameHandler& ghandler)
-            : game_{ game }, resource_{ resource }, gHandler_(ghandler) {
+        RequestHandler(game::GameHandler& game, res::ResourceHandler& resource, model::Game& game_simple)
+            : game_{ game }, resource_{ resource }, game_simple_{ game_simple } {
         }
 
         RequestHandler(const RequestHandler&) = delete;
@@ -41,10 +41,10 @@ namespace http_handler {
         }
 
     private:
-
-        model::Game& game_;
+        game::GameHandler& game_;
         res::ResourceHandler& resource_;
-        game::GameHandler& gHandler_;
+        model::Game& game_simple_;
+        
 
         // ------------------------------ блок работы с обычными get и head запросами -------------------
 
