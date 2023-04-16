@@ -5,7 +5,8 @@
 #include <type_traits>
 #include <boost/json.hpp>
 
-#include "model.h"
+//#include "model.h"
+#include "domain.h"
 
 namespace json_detail {
 
@@ -35,5 +36,8 @@ namespace json_detail {
 
 	// возвращает строковое представление json-словаря с полной информацией по запрошенной карте
 	std::string GetMapInfo(const model::Map* data);
+
+	//// возвращает строкове предаставление json-словаря с информацией о новом загруженном игроке
+	//std::string GetNewPlayerInfo(game_handler::PlayerPtr player);
 
 } // namespace json_detail

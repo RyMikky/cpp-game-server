@@ -1,7 +1,8 @@
 ﻿#pragma once
 #include "http_server.h"
 #include "resource_handler.h"
-#include "model.h"
+#include "game_handler.h"      // подключить boost_json.h и json_loader.h
+//#include "model.h"
 #include "domain.h"
 
 namespace http_handler {
@@ -10,12 +11,13 @@ namespace http_handler {
     namespace beast = boost::beast;
     namespace http = beast::http;
     namespace res = resource_handler;
+    namespace game = game_handler;
     namespace fs = std::filesystem;
 
     class RequestHandler {
     public:
-        RequestHandler(model::Game& game, res::ResourceHandler& resource)
-            : game_{ game }, resource_{ resource } {
+        RequestHandler(model::Game& game, res::ResourceHandler& resource, game::GameHandler& ghandler)
+            : game_{ game }, resource_{ resource }, gHandler_(ghandler) {
         }
 
         RequestHandler(const RequestHandler&) = delete;
@@ -42,6 +44,7 @@ namespace http_handler {
 
         model::Game& game_;
         res::ResourceHandler& resource_;
+        game::GameHandler& gHandler_;
 
         // ------------------------------ блок работы с обычными get и head запросами -------------------
 

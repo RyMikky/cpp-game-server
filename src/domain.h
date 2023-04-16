@@ -1,6 +1,11 @@
+// базовый инклюд объедин€ющий раные типы данных примен€емые по всей программе
+// требуетс€ дл€ работы сервера, обработчика запросов, обработчика игры и еЄ состо€ний
+
 #pragma once
 
 #include "sdk.h"
+#include "model.h"
+#include "token.h"
 // boost.beast будет использовать std::string_view вместо boost::string_view
 #define BOOST_BEAST_USE_STD_STRING_VIEW
 
@@ -9,10 +14,10 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 
-#include "boost_json.h"
-#include "model.h"
+//#include "boost_json.h"
 
 #include <unordered_map>
+#include <string_view>
 #include <filesystem>
 #include <variant>
 #include <optional>
@@ -20,14 +25,6 @@
 #include <deque>
 
 using namespace std::literals;
-
-namespace http_domain {
-
-    namespace beast = boost::beast;
-    namespace http = beast::http;
-    namespace fs = std::filesystem;
-
-} // namespace http_domain
 
 namespace http_handler {
 
@@ -94,3 +91,38 @@ namespace resource_handler {
     using FileIndexPathToName = std::unordered_map<std::string_view, ResourcePtr>;
 
 } // namespace resource_handler
+
+namespace game_handler {
+
+    class Player {
+    public:
+        Player() = default;
+
+        Player(const Player&) = delete;
+        Player& operator=(const Player&) = delete;
+        Player(Player&&) = default;
+        Player& operator=(Player&&) = default;
+
+        Player(uint16_t id, std::string_view name, const Token* token)
+            : id_(id), name_(name), token_(token) {
+        };
+
+        uint16_t get_player_id() const {
+            return id_;
+        }
+        std::string_view get_player_name() const {
+            return name_;
+        }
+        std::string_view get_player_token() const {
+            return **token_;
+        }
+
+    private:
+        uint16_t id_ = 65535;
+        std::string name_ = "dummy"s;
+        const Token* token_ = nullptr;
+    };
+
+    using PlayerPtr = const Player*;
+
+} // namespace game_handler

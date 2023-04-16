@@ -142,7 +142,7 @@ namespace json_loader {
         std::ifstream file(json_path);
         if (!file.is_open()) {
             // бросаем исключение в случае ошибки
-            throw std::runtime_error("Failed to open file: " + json_path.string());
+            throw std::runtime_error("Failed to open file: " + json_path.generic_string());
         }
 
         // загружаем содержимое в строку

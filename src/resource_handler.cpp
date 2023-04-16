@@ -23,7 +23,7 @@ namespace resource_handler {
 	}
 	// возвращает указатель на данные по пути к файлу
 	ResourcePtr ResourceHandler::GetResourseByPath(const fs::path& file_path) const {
-		return !IsIndexed(file_path) ? nullptr : _path_to_data_ptr.at(file_path.string());
+		return !IsIndexed(file_path) ? nullptr : _path_to_data_ptr.at(file_path.generic_string());
 	}
 
 	// возвращает подтверждение наличи€ файла
@@ -32,7 +32,7 @@ namespace resource_handler {
 	}	
 	// возвращает подтверждение наличи€ файла
 	bool ResourceHandler::IsIndexed(fs::path file_path) const {
-		return _path_to_data_ptr.count(file_path.string());
+		return _path_to_data_ptr.count(file_path.generic_string());
 	}
 
 	void ResourceHandler::SetRootDirectory(const fs::path& file_path) {
@@ -43,7 +43,7 @@ namespace resource_handler {
 
 		// создаЄм первую запись о руте
 		resource_handler::ResourceItem root;
-		root._path = file_path.string();
+		root._path = file_path.generic_string();
 		root._name = file_path.filename().string();
 		root._type = ResourceType::root;
 		// добавл€ем первую запись о руте

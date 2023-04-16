@@ -3,10 +3,8 @@
 #include <filesystem>
 #include <fstream>
 
-#include "model.h"
-#include "domain.h"
-
-
+#include "boost_json.h"              // все инклюды получим из базовой системы и domain.h
+//#include "domain.h"                // все базовые инклюды находятся в домейн
 
 namespace json_loader {
 

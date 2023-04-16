@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="boost_json.cpp" />
+    <ClCompile Include="game_handler.cpp" />
     <ClCompile Include="http_server.cpp" />
     <ClCompile Include="json_loader.cpp" />
     <ClCompile Include="logger_handler.cpp" />
@@ -27,10 +28,13 @@
     <ClCompile Include="model.cpp" />
     <ClCompile Include="request_handler.cpp" />
     <ClCompile Include="resource_handler.cpp" />
+    <ClCompile Include="test_frame.cpp" />
+    <ClCompile Include="token.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="boost_json.h" />
     <ClInclude Include="domain.h" />
+    <ClInclude Include="game_handler.h" />
     <ClInclude Include="http_server.h" />
     <ClInclude Include="json_loader.h" />
     <ClInclude Include="logger_handler.h" />
@@ -39,6 +43,8 @@
     <ClInclude Include="resource_handler.h" />
     <ClInclude Include="sdk.h" />
     <ClInclude Include="tagged.h" />
+    <ClInclude Include="test_frame.h" />
+    <ClInclude Include="token.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\data\config.json" />

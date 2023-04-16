@@ -71,6 +71,9 @@
     <ClInclude Include="tagged.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
+    <ClInclude Include="token.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\data\config.json">

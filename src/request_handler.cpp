@@ -181,9 +181,6 @@ namespace http_handler {
         response.set(http::field::content_type, ContentType::TEXT_TXT);
         response.body() = json_detail::GetErrorString("NotFound"sv, "file not found"sv);
 
-        //записываем данные об адресате отправления
-        //response.insert("remote_host", req.at("remote_host"));
-
         return response;
     }
 
@@ -238,6 +235,8 @@ namespace http_handler {
         }
     }
 
+
+    
     // возвращает список доступных карт
     Response RequestHandler::ApiFindMapResponse(StringRequest&& req, std::string_view find_request_line) {
 

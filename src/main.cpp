@@ -7,9 +7,11 @@
 #include <thread>
 #include <cassert>
 
-#include "logger_handler.h"
-#include "json_loader.h"
-#include "request_handler.h"
+#include "logger_handler.h"                          // базовый инклюд обеспечивающий доступ к логгеру в данном участке кода
+//#include "json_loader.h"                             
+#include "request_handler.h"                         // базовый инклюд открывающий доступ к серверу, обработчику ресурсов
+//#include "game_handler.h"                            // базовый инклюд открывающий доступ к игровой модели и json_блоку
+#include "test_frame.h"
 
 using namespace std::literals;
 namespace net = boost::asio;
@@ -27,6 +29,12 @@ void RunWorkers(unsigned n, const Fn& fn) {
     while (--n) {
         workers.emplace_back(fn);
     }
+
+    {
+        // таким образом как только выйдем из области видимости класс уничтожится
+        test::SimpleTest("127.0.0.1", "8080");
+    }
+    
     fn();
 }
 
@@ -43,11 +51,14 @@ int main(int argc, const char* argv[]) {
     }
 
     try {
-        // 0.1. Инициализируем буст-логгер
+        // 0.1. Инициализируем буст-логгер, для базовой инициализации можно подать любой консольный поток
         logger_handler::detail::BoostLogBaseSetup(std::cout);
 
         // 1. Загружаем карту из файла и построить модель игры
         model::Game game = json_loader::LoadGame(argv[1]);
+
+        // времянка подгружающая игровоую модель в обработчик на момент написания
+        game_handler::GameHandler g_handler{ argv[1] };
 
         // 2. Загружаем данные в обработчик ресурсов
         resource_handler::ResourceHandler resource = resource_handler::detail::LoadFiles( argv[2]);
@@ -62,23 +73,19 @@ int main(int argc, const char* argv[]) {
             if (!ec) {
                 ioc.stop();
                 logger_handler::LogShutdown();
-                //__LOGGER__.LogShutdown();
             }
             });
 
         // 5. Создаём обработчик HTTP-запросов и связываем его с моделью игры
-        http_handler::RequestHandler resource_handler{ game, resource };
+        http_handler::RequestHandler request_handler{ game, resource, g_handler };
 
         // 6. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
         const auto address = net::ip::make_address("0.0.0.0");
         constexpr net::ip::port_type port = 8080;
-        http_server::ServeHttp(ioc, {address, port}, [&resource_handler](auto&& req, auto&& send) {
-            resource_handler(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
+        http_server::ServeHttp(ioc, {address, port}, [&request_handler](auto&& req, auto&& send) {
+            request_handler(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
 
-        // Эта надпись сообщает тестам о том, что сервер запущен и готов обрабатывать запросы 
-        //std::cout << "Server has started..."sv << std::endl;
- 
         // 7. Запускаем обработку асинхронных операций
         RunWorkers(std::max(1u, num_threads), [&ioc] {
             ioc.run();
@@ -86,8 +93,7 @@ int main(int argc, const char* argv[]) {
 
     } catch (const std::exception& ex) {
         logger_handler::LogException(ex);
-        //__LOGGER__.LogException(ex);
-        //std::cerr << ex.what() << std::endl;
+
         return EXIT_FAILURE;
     }
 }
