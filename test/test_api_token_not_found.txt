@@ -1,0 +1,4 @@
+{
+   "code": "unknownToken",
+   "message": "Player token has not been found"
+} 

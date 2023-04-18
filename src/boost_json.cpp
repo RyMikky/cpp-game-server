@@ -10,6 +10,14 @@ namespace json_detail {
 		};
 	}
 
+	// возвращает json-словарь с информацией по добавленному игроку
+	json::value GetNewPlayerValue(std::string_view token, std::string_view id) {
+		return json::object{
+			{"authToken", token.data()},
+			{"playerId", id.data()}
+		};
+	}
+
 	// возвращает строковое представление json-словаря с информацией по коду и сообщению о ошибке
 	std::string GetErrorString(std::string_view code, std::string_view message) {
 		return json::serialize(GetErrorValue(code, message));
@@ -123,11 +131,27 @@ namespace json_detail {
 	}
 
 	// возвращает строкове предаставление json-словаря с информацией о новом загруженном игроке
-	std::string GetNewPlayerInfo(game_handler::PlayerPtr player) {
+	std::string GetJoinPlayerString(game_handler::PlayerPtr player) {
 		json::object result;          // базовый ресурс ответа
 
 		result.emplace("authToken", std::string(player->get_player_token()));
 		result.emplace("playerId", (int)player->get_player_id());
+
+		return json::serialize(result);
+	}
+
+	// возвращает строковое представление json_словаря с информацией о всех игроках в указанной сессии
+	std::string GetSessionPlayersList(game_handler::SPIterator begin, game_handler::SPIterator end) {
+
+		json::object result;          // базовый ресурс ответа
+
+		for (game_handler::SPIterator it = begin; it != end; it++) {
+
+			result.emplace(
+				std::to_string(it->second.get_player_id()),
+				json::object{ {"name", it->second.get_player_name()} }
+			);
+		}
 
 		return json::serialize(result);
 	}

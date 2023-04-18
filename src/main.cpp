@@ -59,7 +59,6 @@ int main(int argc, const char* argv[]) {
         model::Game game_simple = json_loader::LoadGame(argv[1]);
 
         game_handler::GameHandler game{ argv[1] };
-
         // 2. Загружаем данные в обработчик ресурсов
         resource_handler::ResourceHandler resource{ argv[2] };
         //resource_handler::ResourceHandler resource = resource_handler::detail::LoadFiles( argv[2]);

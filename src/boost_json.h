@@ -16,6 +16,9 @@ namespace json_detail {
 	// возвращает json-словарь с информацией по коду и сообщению о ошибке
 	json::value GetErrorValue(std::string_view code, std::string_view message);
 
+	// возвращает json-словарь с информацией по добавленному игроку
+	json::value GetNewPlayerValue(std::string_view token, std::string_view id);
+
 	// возвращает строковое представление json-словаря с информацией по коду и сообщению о ошибке
 	std::string GetErrorString(std::string_view code, std::string_view message);
 
@@ -38,6 +41,9 @@ namespace json_detail {
 	std::string GetMapInfo(const model::Map* data);
 
 	// возвращает строкове предаставление json-словаря с информацией о новом загруженном игроке
-	std::string GetNewPlayerInfo(game_handler::PlayerPtr player);
+	std::string GetJoinPlayerString(game_handler::PlayerPtr player);
+
+	// возвращает строковое представление json_словаря с информацией о всех игроках в указанной сессии
+	std::string GetSessionPlayersList(game_handler::SPIterator begin, game_handler::SPIterator end);
 
 } // namespace json_detail

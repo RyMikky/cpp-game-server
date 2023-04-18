@@ -309,6 +309,11 @@ namespace http_handler {
             return game_.join_game_response(std::move(req));
         }
 
+        if (api_request_line == "/v1/game/players"sv) {
+            // обрабатываем запрос по выдаче информации о подключенных игроках к сессии
+            return game_.player_list_response(std::move(req));
+        }
+
         // важный момент парсинга - блок сработает только если строка больше 9 символов и первые слова "/v1/maps/"
         // по идее сюда можно добавлять разные элементы, если их будет много то имеет смысл сделать специализированный парсер
         if (api_request_line.size() >= 9 && std::string{ api_request_line.begin(),  api_request_line.begin() + 9 } == "/v1/maps/"sv) {

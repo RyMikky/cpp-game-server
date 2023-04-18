@@ -32,7 +32,9 @@ namespace test {
 		void TestApiMapOne();
 		void TestApiMapNotFound();
 		void TestApiBadRequest();
+
 		void TestApiGameLogin();
+		void TestApiGameSecondLogin();
 
 		void TestApiGameLoginMissName();
 		void TestApiGameLoginInvalidName();
@@ -40,6 +42,15 @@ namespace test {
 		void TestApiGameLoginMapNotFound();
 		
 		void TestApiGameLoginInvalidMethod();
+
+		using AuthResp = std::pair<std::string, size_t>;
+		AuthResp TestApiGameThirdLogin();
+		void TestApiGamePlayerList(AuthResp data);
+		void TestApiGameAuthorizationMissBody(AuthResp data);
+		void TestApiGameAuthorizationMissing(AuthResp data);
+		void TestApiGameTokenNotFound(AuthResp data);
+		void TestApiGamePlayerListInvalidMethod(AuthResp data);
+		void TestAuthorizationSet();
 
 	};
 

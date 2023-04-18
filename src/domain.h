@@ -133,4 +133,6 @@ namespace game_handler {
 
     using PlayerPtr = const Player*;
 
+    using SPIterator = std::unordered_map<const game_handler::Token* const, game_handler::Player>::const_iterator;
+
 } // namespace game_handler
