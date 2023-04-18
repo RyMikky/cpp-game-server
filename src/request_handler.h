@@ -95,6 +95,9 @@ namespace http_handler {
                     IsASCII = true;              // подымаем флаг
                     ascii_code += *it;           // записываем элемент в символ
                 }
+                else if (*it == '+') {
+                    result += ' ';               // для корректной обработки запроса file%20with+spaces
+                }
                 else {
                     result += *it;
                 }
