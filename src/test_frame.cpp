@@ -908,11 +908,11 @@ namespace test {
                 }
 
                 // првоеряем совпадение кода ответа сервера
-                assert(res.result_int() == 404);
+                assert(res.result_int() == 400);
 
                 // проверяем совпадение строки ответа с заготовкой в файле
                 // открываем файл с заготовкой ответа
-                std::fstream file("../test/test_api_map_not_found.txt", std::ios::in);
+                std::fstream file("../test/test_api_game_login_invalid_argument.txt", std::ios::in);
 
                 // чтобы не заморачиваться с переносами строк и прочим битово читаем файл в поток
                 std::stringstream buffer;
@@ -1104,7 +1104,7 @@ namespace test {
                 (size_t)server_resp.as_object().at("playerId").as_int64() };
         }
         catch (std::exception const& e) {
-            std::cerr << "Error: " << e.what() << std::endl;
+            throw std::runtime_error("SimpleTest::TestApiGameThirdLogin::Error" + std::string(e.what()));
         }
     }
 
