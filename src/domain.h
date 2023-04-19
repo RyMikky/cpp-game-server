@@ -1,12 +1,12 @@
-// базовый инклюд объединяющий раные типы данных применяемые по всей программе
-// требуется для работы сервера, обработчика запросов, обработчика игры и её состояний
+п»ї// Р±Р°Р·РѕРІС‹Р№ РёРЅРєР»СЋРґ РѕР±СЉРµРґРёРЅСЏСЋС‰РёР№ СЂР°РЅС‹Рµ С‚РёРїС‹ РґР°РЅРЅС‹С… РїСЂРёРјРµРЅСЏРµРјС‹Рµ РїРѕ РІСЃРµР№ РїСЂРѕРіСЂР°РјРјРµ
+// С‚СЂРµР±СѓРµС‚СЃСЏ РґР»СЏ СЂР°Р±РѕС‚С‹ СЃРµСЂРІРµСЂР°, РѕР±СЂР°Р±РѕС‚С‡РёРєР° Р·Р°РїСЂРѕСЃРѕРІ, РѕР±СЂР°Р±РѕС‚С‡РёРєР° РёРіСЂС‹ Рё РµС‘ СЃРѕСЃС‚РѕСЏРЅРёР№
 
 #pragma once
 
 #include "sdk.h"
 #include "model.h"
 #include "token.h"
-// boost.beast будет использовать std::string_view вместо boost::string_view
+// boost.beast Р±СѓРґРµС‚ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ std::string_view РІРјРµСЃС‚Рѕ boost::string_view
 #define BOOST_BEAST_USE_STD_STRING_VIEW
 
 #include <boost/asio/ip/tcp.hpp>
@@ -38,13 +38,13 @@ namespace http_handler {
         {"%3d", '='}, {"%3e", '>'}, {"%3f", '?'}, {"%40", '@'}, {"%5b", '['}, {"%5c", '\\'}, {"%5d", ']'}, {"%5e", '^'}, {"%5f", '_'}
     };
 
-    // Запрос, тело которого представлено в виде строки
+    // Р—Р°РїСЂРѕСЃ, С‚РµР»Рѕ РєРѕС‚РѕСЂРѕРіРѕ РїСЂРµРґСЃС‚Р°РІР»РµРЅРѕ РІ РІРёРґРµ СЃС‚СЂРѕРєРё
     using StringRequest = http::request<http::string_body>;
-    // Ответ, тело которого представлено в виде строки
+    // РћС‚РІРµС‚, С‚РµР»Рѕ РєРѕС‚РѕСЂРѕРіРѕ РїСЂРµРґСЃС‚Р°РІР»РµРЅРѕ РІ РІРёРґРµ СЃС‚СЂРѕРєРё
     using StringResponse = http::response<http::string_body>;
-    // Ответ, тело которого представленно в виде файла
+    // РћС‚РІРµС‚, С‚РµР»Рѕ РєРѕС‚РѕСЂРѕРіРѕ РїСЂРµРґСЃС‚Р°РІР»РµРЅРЅРѕ РІ РІРёРґРµ С„Р°Р№Р»Р°
     using FileResponse = http::response<http::file_body>;
-    // Варианты ответов на запросы
+    // Р’Р°СЂРёР°РЅС‚С‹ РѕС‚РІРµС‚РѕРІ РЅР° Р·Р°РїСЂРѕСЃС‹
     using Response = std::variant<std::monostate, StringResponse, FileResponse>;
 
 #define IS_FILE_RESPONSE(response) std::holds_alternative<http_handler::FileResponse>(response) 
@@ -52,21 +52,21 @@ namespace http_handler {
 
     struct ContentType {
         ContentType() = delete;
-        constexpr static std::string_view TEXT_HTML = "text/html"sv;                  // для .htm, .html
-        constexpr static std::string_view TEXT_CSS = "text/css"sv;                    // для .css
-        constexpr static std::string_view TEXT_TXT = "text/plain"sv;                  // для .txt
-        constexpr static std::string_view TEXT_JS = "text/javascript"sv;              // для .js
-        constexpr static std::string_view APP_JSON = "application/json"sv;            // для .json
-        constexpr static std::string_view APP_XML = "application/xml"sv;              // для .xml
-        constexpr static std::string_view IMAGE_PNG = "image/png"sv;                  // для .png
-        constexpr static std::string_view IMAGE_JPEG = "image/jpeg"sv;                // для .jpg, .jpe, .jpeg
-        constexpr static std::string_view IMAGE_GIF = "image/gif"sv;                  // для .gif
-        constexpr static std::string_view IMAGE_BMP = "image/bmp"sv;                  // для .bmp
-        constexpr static std::string_view IMAGE_ICO = "image/vnd.microsoft.icon"sv;   // для .ico
-        constexpr static std::string_view IMAGE_TIFF = "image/tiff"sv;                // для .tif, .tiff
-        constexpr static std::string_view IMAGE_SVG = "image/svg+xml"sv;              // для .svg, .svgz
-        constexpr static std::string_view AUDIO_MPEG = "audio/mpeg"sv;                // для .mp3
-        constexpr static std::string_view APP_UNKNOW = "application/octet-stream"sv;  // для .unknow
+        constexpr static std::string_view TEXT_HTML = "text/html"sv;                  // РґР»СЏ .htm, .html
+        constexpr static std::string_view TEXT_CSS = "text/css"sv;                    // РґР»СЏ .css
+        constexpr static std::string_view TEXT_TXT = "text/plain"sv;                  // РґР»СЏ .txt
+        constexpr static std::string_view TEXT_JS = "text/javascript"sv;              // РґР»СЏ .js
+        constexpr static std::string_view APP_JSON = "application/json"sv;            // РґР»СЏ .json
+        constexpr static std::string_view APP_XML = "application/xml"sv;              // РґР»СЏ .xml
+        constexpr static std::string_view IMAGE_PNG = "image/png"sv;                  // РґР»СЏ .png
+        constexpr static std::string_view IMAGE_JPEG = "image/jpeg"sv;                // РґР»СЏ .jpg, .jpe, .jpeg
+        constexpr static std::string_view IMAGE_GIF = "image/gif"sv;                  // РґР»СЏ .gif
+        constexpr static std::string_view IMAGE_BMP = "image/bmp"sv;                  // РґР»СЏ .bmp
+        constexpr static std::string_view IMAGE_ICO = "image/vnd.microsoft.icon"sv;   // РґР»СЏ .ico
+        constexpr static std::string_view IMAGE_TIFF = "image/tiff"sv;                // РґР»СЏ .tif, .tiff
+        constexpr static std::string_view IMAGE_SVG = "image/svg+xml"sv;              // РґР»СЏ .svg, .svgz
+        constexpr static std::string_view AUDIO_MPEG = "audio/mpeg"sv;                // РґР»СЏ .mp3
+        constexpr static std::string_view APP_UNKNOW = "application/octet-stream"sv;  // РґР»СЏ .unknow
     };
 
     struct Method {
@@ -93,9 +93,9 @@ namespace resource_handler {
 
     using ResourcePtr = ResourceItem*;
 
-    // базовый массив данных в виде "название файла / путь к файлу"
+    // Р±Р°Р·РѕРІС‹Р№ РјР°СЃСЃРёРІ РґР°РЅРЅС‹С… РІ РІРёРґРµ "РЅР°Р·РІР°РЅРёРµ С„Р°Р№Р»Р° / РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ"
     using FileIndexNameToPath = std::unordered_map<std::string_view, ResourcePtr>;
-    // базовый массив данных в виде "название файла / путь к файлу"
+    // Р±Р°Р·РѕРІС‹Р№ РјР°СЃСЃРёРІ РґР°РЅРЅС‹С… РІ РІРёРґРµ "РЅР°Р·РІР°РЅРёРµ С„Р°Р№Р»Р° / РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ"
     using FileIndexPathToName = std::unordered_map<std::string_view, ResourcePtr>;
 
 } // namespace resource_handler

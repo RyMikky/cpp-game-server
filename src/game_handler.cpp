@@ -1,4 +1,4 @@
-#include "game_handler.h"
+п»ї#include "game_handler.h"
 #include <boost/asio.hpp>
 #include <algorithm>
 
@@ -8,38 +8,38 @@ namespace game_handler {
 	namespace json = boost::json;
 
 	size_t TokenHasher::operator()(const Token& token) const noexcept {
-		// Возвращает хеш значения, хранящегося внутри token
+		// Р’РѕР·РІСЂР°С‰Р°РµС‚ С…РµС€ Р·РЅР°С‡РµРЅРёСЏ, С…СЂР°РЅСЏС‰РµРіРѕСЃСЏ РІРЅСѓС‚СЂРё token
 		return _hasher(*token);
 	}
 
 	size_t TokenPtrHasher::operator()(const Token* token) const noexcept {
-		// Возвращает хеш значения, хранящегося внутри token
+		// Р’РѕР·РІСЂР°С‰Р°РµС‚ С…РµС€ Р·РЅР°С‡РµРЅРёСЏ, С…СЂР°РЅСЏС‰РµРіРѕСЃСЏ РІРЅСѓС‚СЂРё token
 		return _hasher(*(*token));
 	}
 
 	// -------------------------- class GameSession --------------------------
 
-	// отвечает есть ли в сессии свободное местечко
+	// РѕС‚РІРµС‡Р°РµС‚ РµСЃС‚СЊ Р»Рё РІ СЃРµСЃСЃРёРё СЃРІРѕР±РѕРґРЅРѕРµ РјРµСЃС‚РµС‡РєРѕ
 	bool GameSession::have_free_space() {
-		// смотрим есть ли место в текущей игровой сессии
+		// СЃРјРѕС‚СЂРёРј РµСЃС‚СЊ Р»Рё РјРµСЃС‚Рѕ РІ С‚РµРєСѓС‰РµР№ РёРіСЂРѕРІРѕР№ СЃРµСЃСЃРёРё
 		auto id = std::find(players_id_.begin(), players_id_.end(), false);
 
 		return id != players_id_.end();
 	}
 
 	Player* GameSession::add_new_player(std::string_view name) {
-		// смотрим есть ли место в текущей игровой сессии
+		// СЃРјРѕС‚СЂРёРј РµСЃС‚СЊ Р»Рё РјРµСЃС‚Рѕ РІ С‚РµРєСѓС‰РµР№ РёРіСЂРѕРІРѕР№ СЃРµСЃСЃРёРё
 		auto id = std::find(players_id_.begin(), players_id_.end(), false);
 		if (id != players_id_.end()) {
-			// если место есть, то запрашиваем уникальный токен
+			// РµСЃР»Рё РјРµСЃС‚Рѕ РµСЃС‚СЊ, С‚Рѕ Р·Р°РїСЂР°С€РёРІР°РµРј СѓРЅРёРєР°Р»СЊРЅС‹Р№ С‚РѕРєРµРЅ
 			const Token* player_token = game_handler_.get_unique_token(shared_from_this());
-			// создаём игрока в текущей игровой сессии
+			// СЃРѕР·РґР°С‘Рј РёРіСЂРѕРєР° РІ С‚РµРєСѓС‰РµР№ РёРіСЂРѕРІРѕР№ СЃРµСЃСЃРёРё
 			session_players_[player_token] = 
 				std::move(Player{ uint16_t(std::distance(players_id_.begin(), id)), name, player_token });
-			// делаем пометку в булевом массиве
+			// РґРµР»Р°РµРј РїРѕРјРµС‚РєСѓ РІ Р±СѓР»РµРІРѕРј РјР°СЃСЃРёРІРµ
 			*id = true;
 
-			// возвращаем игрока по токену
+			// РІРѕР·РІСЂР°С‰Р°РµРј РёРіСЂРѕРєР° РїРѕ С‚РѕРєРµРЅСѓ
 			return get_player_by_token(player_token);
 		}
 		else {
@@ -52,9 +52,9 @@ namespace game_handler {
 			return false;
 		}
 		else {
-			// освобождаем id текущего игрока по токену
+			// РѕСЃРІРѕР±РѕР¶РґР°РµРј id С‚РµРєСѓС‰РµРіРѕ РёРіСЂРѕРєР° РїРѕ С‚РѕРєРµРЅСѓ
 			players_id_[session_players_.at(token).get_player_id()] = false;
-			// удаляем запись о игроке вместе со структурой
+			// СѓРґР°Р»СЏРµРј Р·Р°РїРёСЃСЊ Рѕ РёРіСЂРѕРєРµ РІРјРµСЃС‚Рµ СЃРѕ СЃС‚СЂСѓРєС‚СѓСЂРѕР№
 			session_players_.erase(token);
 			return true;
 		}
@@ -70,53 +70,52 @@ namespace game_handler {
 	// -------------------------- class GameHandler --------------------------
 
 	size_t MapPtrHasher::operator()(const model::Map* map) const noexcept {
-		// Возвращает хеш значения, хранящегося внутри map
+		// Р’РѕР·РІСЂР°С‰Р°РµС‚ С…РµС€ Р·РЅР°С‡РµРЅРёСЏ, С…СЂР°РЅСЏС‰РµРіРѕСЃСЏ РІРЅСѓС‚СЂРё map
 		return _hasher(map->GetName()) + _hasher(*(map->GetId()));
 	}
 
-	// Обеспечивает вход игрока в игровую сессию
+	// РћР±РµСЃРїРµС‡РёРІР°РµС‚ РІС…РѕРґ РёРіСЂРѕРєР° РІ РёРіСЂРѕРІСѓСЋ СЃРµСЃСЃРёСЋ
 	std::string enter_to_game_session(std::string_view name, std::string_view map) {
 		return {};
 	}
 
-	// Возвращает ответ на запрос о списке игроков в данной сессии
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚ РЅР° Р·Р°РїСЂРѕСЃ Рѕ СЃРїРёСЃРєРµ РёРіСЂРѕРєРѕРІ РІ РґР°РЅРЅРѕР№ СЃРµСЃСЃРёРё
 	http_handler::Response GameHandler::player_list_response(http_handler::StringRequest&& req) {
 
 		if (req.method_string() != http_handler::Method::GET && req.method_string() != http_handler::Method::HEAD) {
-			// если у нас ни гет и ни хед запрос, то кидаем отбойник
+			// РµСЃР»Рё Сѓ РЅР°СЃ РЅРё РіРµС‚ Рё РЅРё С…РµРґ Р·Р°РїСЂРѕСЃ, С‚Рѕ РєРёРґР°РµРј РѕС‚Р±РѕР№РЅРёРє
 			return method_not_allowed_impl(std::move(req), http_handler::Method::GET, http_handler::Method::HEAD);
 		}
 
 		try
 		{
-			// ищем тушку авторизации среди хеддеров запроса
+			// РёС‰РµРј С‚СѓС€РєСѓ Р°РІС‚РѕСЂРёР·Р°С†РёРё СЃСЂРµРґРё С…РµРґРґРµСЂРѕРІ Р·Р°РїСЂРѕСЃР°
 			auto auth_iter = req.find("Authorization");
 			if (auth_iter == req.end()) {
-				// если нет тушки по авторизации, тогда кидаем отбойник
+				// РµСЃР»Рё РЅРµС‚ С‚СѓС€РєРё РїРѕ Р°РІС‚РѕСЂРёР·Р°С†РёРё, С‚РѕРіРґР° РєРёРґР°РµРј РѕС‚Р±РѕР№РЅРёРє
 				return unauthorized_response(std::move(req),
 					"invalidToken"sv, "Authorization header is missing"sv);
 			}
 
-			// из тушки запроса получаем строку
-			// так как строка должна иметь строгий вид Bearer <токен>, то мы легко можем распарсить её
-			std::string bearer{ auth_iter->value().begin(), auth_iter->value().begin() + 6 };
-			std::string token{ auth_iter->value().begin() + 7, auth_iter->value().end() };
+			// РёР· С‚СѓС€РєРё Р·Р°РїСЂРѕСЃР° РїРѕР»СѓС‡Р°РµРј СЃС‚СЂРѕРєСѓ
+			// С‚Р°Рє РєР°Рє СЃС‚СЂРѕРєР° РґРѕР»Р¶РЅР° РёРјРµС‚СЊ СЃС‚СЂРѕРіРёР№ РІРёРґ Bearer <С‚РѕРєРµРЅ>, С‚Рѕ РјС‹ Р»РµРіРєРѕ РјРѕР¶РµРј СЂР°СЃРїР°СЂСЃРёС‚СЊ РµС‘
+			auto auth_reparse = detail::BearerParser({ auth_iter->value().begin(), auth_iter->value().end() });
 
-			if (bearer != "Bearer" || token.size() == 0) {
-				// если нет строки Bearer, или она корявая, или токен пустой, то кидаем отбойник
+			if (!auth_reparse) {
+				// РµСЃР»Рё РЅРµС‚ СЃС‚СЂРѕРєРё Bearer, РёР»Рё РѕРЅР° РєРѕСЂСЏРІР°СЏ, РёР»Рё С‚РѕРєРµРЅ РїСѓСЃС‚РѕР№, С‚Рѕ РєРёРґР°РµРј РѕС‚Р±РѕР№РЅРёРє
 				return unauthorized_response(std::move(req),
 					"invalidToken"sv, "Authorization header is missing"sv);
 			}
 
-			Token req_token{ token }; // создаём быстро токен на основе запроса и ищем совпадение во внутреннем массиве
+			Token req_token{ auth_reparse.value() }; // СЃРѕР·РґР°С‘Рј Р±С‹СЃС‚СЂРѕ С‚РѕРєРµРЅ РЅР° РѕСЃРЅРѕРІРµ Р·Р°РїСЂРѕСЃР° Рё РёС‰РµРј СЃРѕРІРїР°РґРµРЅРёРµ РІРѕ РІРЅСѓС‚СЂРµРЅРЅРµРј РјР°СЃСЃРёРІРµ
 			if (!tokens_list_.count(req_token)) {
-				// если заголовок Authorization содержит валидное значение токена, но в игре нет пользователя с таким токеном
+				// РµСЃР»Рё Р·Р°РіРѕР»РѕРІРѕРє Authorization СЃРѕРґРµСЂР¶РёС‚ РІР°Р»РёРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ С‚РѕРєРµРЅР°, РЅРѕ РІ РёРіСЂРµ РЅРµС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ СЃ С‚Р°РєРёРј С‚РѕРєРµРЅРѕРј
 				return unauthorized_response(std::move(req),
 					"unknownToken"sv, "Player token has not been found"sv);
 			}
 			else {
-				// если токен таки есть, тогда отправляемся в непосредственную имплементацию метода
-				// если токен таки есть, тогда уже берем сессию, где он "висит" и запрашиваем инфу о всех подключенных игроках
+				// РµСЃР»Рё С‚РѕРєРµРЅ С‚Р°РєРё РµСЃС‚СЊ, С‚РѕРіРґР° РѕС‚РїСЂР°РІР»СЏРµРјСЃСЏ РІ РЅРµРїРѕСЃСЂРµРґСЃС‚РІРµРЅРЅСѓСЋ РёРјРїР»РµРјРµРЅС‚Р°С†РёСЋ РјРµС‚РѕРґР°
+				// РµСЃР»Рё С‚РѕРєРµРЅ С‚Р°РєРё РµСЃС‚СЊ, С‚РѕРіРґР° СѓР¶Рµ Р±РµСЂРµРј СЃРµСЃСЃРёСЋ, РіРґРµ РѕРЅ "РІРёСЃРёС‚" Рё Р·Р°РїСЂР°С€РёРІР°РµРј РёРЅС„Сѓ Рѕ РІСЃРµС… РїРѕРґРєР»СЋС‡РµРЅРЅС‹С… РёРіСЂРѕРєР°С…
 				return player_list_response_impl(std::move(req), std::move(req_token));
 			}
 		}
@@ -125,66 +124,88 @@ namespace game_handler {
 			throw std::runtime_error("GameHandler::player_list_response::error" + std::string(e.what()));
 		}
 	}
-	// Возвращает ответ на запрос по присоединению к игре
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚ РЅР° Р·Р°РїСЂРѕСЃ РїРѕ РїСЂРёСЃРѕРµРґРёРЅРµРЅРёСЋ Рє РёРіСЂРµ
 	http_handler::Response GameHandler::join_game_response(http_handler::StringRequest&& req) {
 
 		if (req.method_string() != http_handler::Method::POST) {
-			// сюда вставить респонс о недопустимом типе
+			// СЃСЋРґР° РІСЃС‚Р°РІРёС‚СЊ СЂРµСЃРїРѕРЅСЃ Рѕ РЅРµРґРѕРїСѓСЃС‚РёРјРѕРј С‚РёРїРµ
 			return method_not_allowed_impl(std::move(req), http_handler::Method::POST);
 		}
 
 		try
 		{
-			// ищем тушку среди хеддеров запроса
-			auto body_iter = req.find("Body");
-			if (body_iter == req.end()) {
-				// если нет тела запроса, тогда запрашиваем
-				return bad_request_response(std::move(req), 
+			
+
+			//for (auto& item : req) {
+			//	std::cerr << item.name_string() << " : " << item.value() << std::endl;
+			//}
+			//auto b = req.body();
+
+			//// РёС‰РµРј С‚СѓС€РєСѓ СЃСЂРµРґРё С…РµРґРґРµСЂРѕРІ Р·Р°РїСЂРѕСЃР°
+			//auto body_iter = req.find("Body");
+			//if (body_iter == req.end()) {
+			//	// РµСЃР»Рё РЅРµС‚ С‚РµР»Р° Р·Р°РїСЂРѕСЃР°, С‚РѕРіРґР° Р·Р°РїСЂР°С€РёРІР°РµРј
+			//	return bad_request_response(std::move(req), 
+			//		"invalidArgument"sv, "Header body whit two arguments <userName> and <mapId> expected"sv);
+			//}
+			//// РёР· С‚СѓС€РєРё Р·Р°РїСЂРѕСЃР° РїРѕР»СѓС‡Р°РµРј СЃС‚СЂРѕРєСѓ
+			//std::string body_string{ body_iter->value().begin(), body_iter->value().end() };
+			//// РїР°СЂСЃРёРј С‚РµР»Рѕ Р·Р°РїСЂРѕСЃР°, РІСЃРµ РёСЃРєР»СЋС‡РµРЅРёСЏ РІ РїСЂРѕС†РµСЃСЃРµ Р±СѓРґРµРј Р»РѕРІРёС‚СЊ РІ catch_Р±Р»РѕРєРµ
+			//json::value req_data = json_detail::ParseTextToBoostJson(body_string);
+
+
+			if (req.body().size() == 0) {
+				// РµСЃР»Рё РЅРµС‚ С‚РµР»Р° Р·Р°РїСЂРѕСЃР°, С‚РѕРіРґР° Р·Р°РїСЂР°С€РёРІР°РµРј
+				return bad_request_response(std::move(req),
 					"invalidArgument"sv, "Header body whit two arguments <userName> and <mapId> expected"sv);
 			}
-			// из тушки запроса получаем строку
-			std::string body_string{ body_iter->value().begin(), body_iter->value().end() };
-			// парсим тело запроса, все исключения в процессе будем ловить в catch_блоке
-			json::value req_data = json_detail::ParseTextToBoostJson(body_string);
 
-			// если в блоке вообще нет графы "userName" или "mapId"
-			if (!req_data.as_object().count("userName") || !req_data.as_object().count("mapId")) {
-				return bad_request_response(std::move(req), "invalidArgument"sv, "Two arguments <userName> and <mapId> expected"sv);
-			}
+			// РїР°СЂСЃРёРј С‚РµР»Рѕ Р·Р°РїСЂРѕСЃР°, РІСЃРµ РёСЃРєР»СЋС‡РµРЅРёСЏ РІ РїСЂРѕС†РµСЃСЃРµ Р±СѓРґРµРј Р»РѕРІРёС‚СЊ РІ catch_Р±Р»РѕРєРµ
+			json::value req_data = json_detail::ParseTextToBoostJson(req.body());
+			
+			{
+				// РµСЃР»Рё РІ Р±Р»РѕРєРµ РІРѕРѕР±С‰Рµ РЅРµС‚ РіСЂР°С„С‹ "userName" РёР»Рё "mapId"
+				if (!req_data.as_object().count("userName") || !req_data.as_object().count("mapId")) {
+					return bad_request_response(std::move(req), "invalidArgument"sv, "Two arguments <userName> and <mapId> expected"sv);
+				}
 
-			// если в "userName" пустота
-			if (req_data.as_object().at("userName") == "") {
-				return bad_request_response(std::move(req), "invalidArgument"sv, "Invalid name"sv);
-			}
+				// РµСЃР»Рё РІ "userName" РїСѓСЃС‚РѕС‚Р°
+				if (req_data.as_object().at("userName") == "") {
+					return bad_request_response(std::move(req), "invalidArgument"sv, "Invalid name"sv);
+				}
 
-			// ищем запрошенную карту
-			auto map = game_simple_.FindMap(
-				model::Map::Id{ std::string(
-					req_data.as_object().at("mapId").as_string()) });
+				// РёС‰РµРј Р·Р°РїСЂРѕС€РµРЅРЅСѓСЋ РєР°СЂС‚Сѓ
+				auto map = game_simple_.FindMap(
+					model::Map::Id{ std::string(
+						req_data.as_object().at("mapId").as_string()) });
 
-			if (map == nullptr) {
-				// если карта не найдена, то кидаем отбойник
-				return map_not_found_response_impl(std::move(req));
+				if (map == nullptr) {
+					// РµСЃР»Рё РєР°СЂС‚Р° РЅРµ РЅР°Р№РґРµРЅР°, С‚Рѕ РєРёРґР°РµРј РѕС‚Р±РѕР№РЅРёРє
+					return map_not_found_response_impl(std::move(req));
+				}
+				else {
+					// РµСЃР»Рё РєР°СЂС‚Р° РµСЃС‚СЊ Рё РјС‹ РїРѕР»СѓС‡РёР»Рё СѓРєР°Р·Р°С‚РµР»СЊ
+					// РїРµСЂРµРґР°РµРј СѓРїСЂР°РІР»РµРЅРёРµ РѕСЃРЅРѕРІРЅРѕР№ РёРјРїР»РµРјРµРЅС‚Р°С†РёРё
+					return join_game_response_impl(std::move(req), std::move(req_data), map);
+				}
 			}
-			else {
-				// если карта есть и мы получили указатель
-				// передаем управление основной имплементации
-				return join_game_response_impl(std::move(req), std::move(req_data), map);
-			}
+			
 		}
-		catch (const std::exception& e)
+		catch (const std::exception&)
 		{
-			throw std::runtime_error("GameHandler::join_game_response::error" + std::string(e.what()));
+			return bad_request_response(std::move(req), "invalidArgument"sv, "Join game request parse error"sv);
+
+			//throw std::runtime_error("GameHandler::join_game_response::error" + std::string(e.what()));
 		}
 	}
-	// Возвращает ответ на запрос по поиску конкретной карты
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚ РЅР° Р·Р°РїСЂРѕСЃ РїРѕ РїРѕРёСЃРєСѓ РєРѕРЅРєСЂРµС‚РЅРѕР№ РєР°СЂС‚С‹
 	http_handler::Response GameHandler::find_map_response(http_handler::StringRequest&& req, std::string_view find_request_line) {
 
-		// ищем запрошенную карту
+		// РёС‰РµРј Р·Р°РїСЂРѕС€РµРЅРЅСѓСЋ РєР°СЂС‚Сѓ
 		auto map = game_simple_.FindMap(model::Map::Id{ std::string(find_request_line) });
 
 		if (map == nullptr) {
-			// если карта не найдена, то кидаем отбойник
+			// РµСЃР»Рё РєР°СЂС‚Р° РЅРµ РЅР°Р№РґРµРЅР°, С‚Рѕ РєРёРґР°РµРј РѕС‚Р±РѕР№РЅРёРє
 			return map_not_found_response_impl(std::move(req));
 		}
 		else {
@@ -193,14 +214,14 @@ namespace game_handler {
 			response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 			response.set(http::field::cache_control, "no-cache");
 
-			// загружаем тело ответа из жидомасонского блока по полученному выше блоку параметров карты
+			// Р·Р°РіСЂСѓР¶Р°РµРј С‚РµР»Рѕ РѕС‚РІРµС‚Р° РёР· Р¶РёРґРѕРјР°СЃРѕРЅСЃРєРѕРіРѕ Р±Р»РѕРєР° РїРѕ РїРѕР»СѓС‡РµРЅРЅРѕРјСѓ РІС‹С€Рµ Р±Р»РѕРєСѓ РїР°СЂР°РјРµС‚СЂРѕРІ РєР°СЂС‚С‹
 			response.body() = json_detail::GetMapInfo(map);
 
 			return response;
 		}
 
 	}
-	// Возвращает ответ со списком загруженных карт
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚ СЃРѕ СЃРїРёСЃРєРѕРј Р·Р°РіСЂСѓР¶РµРЅРЅС‹С… РєР°СЂС‚
 	http_handler::Response GameHandler::map_list_response(http_handler::StringRequest&& req) {
 		http_handler::StringResponse response(http::status::ok, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
@@ -209,7 +230,7 @@ namespace game_handler {
 
 		return response;
 	}
-	// Возвращает ответ, что запрос некорректный
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚, С‡С‚Рѕ Р·Р°РїСЂРѕСЃ РЅРµРєРѕСЂСЂРµРєС‚РЅС‹Р№
 	http_handler::Response GameHandler::bad_request_response(
 		http_handler::StringRequest&& req, std::string_view code, std::string_view message) {
 		http_handler::StringResponse response(http::status::bad_request, req.version());
@@ -219,7 +240,7 @@ namespace game_handler {
 
 		return response;
 	}
-	// Возвращает ответ, что запрос не прошёл валидацию
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚, С‡С‚Рѕ Р·Р°РїСЂРѕСЃ РЅРµ РїСЂРѕС€С‘Р» РІР°Р»РёРґР°С†РёСЋ
 	http_handler::Response GameHandler::unauthorized_response(
 		http_handler::StringRequest&& req, std::string_view code, std::string_view message) {
 		http_handler::StringResponse response(http::status::unauthorized, req.version());
@@ -232,16 +253,16 @@ namespace game_handler {
 
 	const Token* GameHandler::get_unique_token(std::shared_ptr<GameSession> session) {
 
-		// вариант получения с помощью контекста
+		// РІР°СЂРёР°РЅС‚ РїРѕР»СѓС‡РµРЅРёСЏ СЃ РїРѕРјРѕС‰СЊСЋ РєРѕРЅС‚РµРєСЃС‚Р°
 
 		//const Token* result = nullptr;
 		//boost::asio::post(strand_, 
-		//	// получаем токен в стредне с помощью имплементации в приватной области класса
+		//	// РїРѕР»СѓС‡Р°РµРј С‚РѕРєРµРЅ РІ СЃС‚СЂРµРґРЅРµ СЃ РїРѕРјРѕС‰СЊСЋ РёРјРїР»РµРјРµРЅС‚Р°С†РёРё РІ РїСЂРёРІР°С‚РЅРѕР№ РѕР±Р»Р°СЃС‚Рё РєР»Р°СЃСЃР°
 		//	[this, session, &result]() { result = this->get_unique_token_impl(session); });
 
 		//return result;
 
-		// вариант получения с помощью мьютекса
+		// РІР°СЂРёР°РЅС‚ РїРѕР»СѓС‡РµРЅРёСЏ СЃ РїРѕРјРѕС‰СЊСЋ РјСЊСЋС‚РµРєСЃР°
 
 		std::lock_guard func_lock_(mutex_);
 		return get_unique_token_impl(session);
@@ -249,14 +270,14 @@ namespace game_handler {
 
 	const Token* GameHandler::get_unique_token_impl(std::shared_ptr<GameSession> session) {
 
-		bool isUnique = true;         // создаём реверсивный флаг
-		Token unique_token{ "" };       // создаём токен-болванку
+		bool isUnique = true;         // СЃРѕР·РґР°С‘Рј СЂРµРІРµСЂСЃРёРІРЅС‹Р№ С„Р»Р°Рі
+		Token unique_token{ "" };       // СЃРѕР·РґР°С‘Рј С‚РѕРєРµРЅ-Р±РѕР»РІР°РЅРєСѓ
 
 		while (isUnique)
 		{
-			// генерируем новый токен
+			// РіРµРЅРµСЂРёСЂСѓРµРј РЅРѕРІС‹Р№ С‚РѕРєРµРЅ
 			unique_token = Token{ detail::GenerateToken32Hex() };
-			// если сгенерированный токен уже есть, то флаг так и останется поднятым и цикл повторится
+			// РµСЃР»Рё СЃРіРµРЅРµСЂРёСЂРѕРІР°РЅРЅС‹Р№ С‚РѕРєРµРЅ СѓР¶Рµ РµСЃС‚СЊ, С‚Рѕ С„Р»Р°Рі С‚Р°Рє Рё РѕСЃС‚Р°РЅРµС‚СЃСЏ РїРѕРґРЅСЏС‚С‹Рј Рё С†РёРєР» РїРѕРІС‚РѕСЂРёС‚СЃСЏ
 			isUnique = tokens_list_.count(unique_token);
 		}
 
@@ -268,7 +289,7 @@ namespace game_handler {
 
 		bool result = false;
 		boost::asio::post(strand_,
-			// удаляем с помощью приватной имплементации
+			// СѓРґР°Р»СЏРµРј СЃ РїРѕРјРѕС‰СЊСЋ РїСЂРёРІР°С‚РЅРѕР№ РёРјРїР»РµРјРµРЅС‚Р°С†РёРё
 			[this, token, &result]() { result = reset_token_impl(token); });
 		return result;
 	}
@@ -276,7 +297,7 @@ namespace game_handler {
 	bool GameHandler::reset_token_impl(std::string_view token) {
 		Token remove{ std::string(token) };
 
-		// TODO Заглушка, скорее всего корректно работать не будет, надо переделать + удаление в GameSession
+		// TODO Р—Р°РіР»СѓС€РєР°, СЃРєРѕСЂРµРµ РІСЃРµРіРѕ РєРѕСЂСЂРµРєС‚РЅРѕ СЂР°Р±РѕС‚Р°С‚СЊ РЅРµ Р±СѓРґРµС‚, РЅР°РґРѕ РїРµСЂРµРґРµР»Р°С‚СЊ + СѓРґР°Р»РµРЅРёРµ РІ GameSession
 
 		if (tokens_list_.count(remove)) {
 			tokens_list_.at(remove)->remove_player(&remove);
@@ -288,68 +309,68 @@ namespace game_handler {
 	}
 
 
-	// Возвращает ответ на запрос о списке игроков в данной сессии
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚ РЅР° Р·Р°РїСЂРѕСЃ Рѕ СЃРїРёСЃРєРµ РёРіСЂРѕРєРѕРІ РІ РґР°РЅРЅРѕР№ СЃРµСЃСЃРёРё
 	http_handler::Response GameHandler::player_list_response_impl(http_handler::StringRequest&& req, Token&& token) {
 
-		// получаем сессию где на данный момент "висит" указанный токен
+		// РїРѕР»СѓС‡Р°РµРј СЃРµСЃСЃРёСЋ РіРґРµ РЅР° РґР°РЅРЅС‹Р№ РјРѕРјРµРЅС‚ "РІРёСЃРёС‚" СѓРєР°Р·Р°РЅРЅС‹Р№ С‚РѕРєРµРЅ
 		std::shared_ptr<GameSession> session = tokens_list_.at(token);
 
-		// подготавливаем и возвращаем ответ
+		// РїРѕРґРіРѕС‚Р°РІР»РёРІР°РµРј Рё РІРѕР·РІСЂР°С‰Р°РµРј РѕС‚РІРµС‚
 		http_handler::StringResponse response(http::status::ok, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		// заполняем тушку ответа с помощью жисонского метода
+		// Р·Р°РїРѕР»РЅСЏРµРј С‚СѓС€РєСѓ РѕС‚РІРµС‚Р° СЃ РїРѕРјРѕС‰СЊСЋ Р¶РёСЃРѕРЅСЃРєРѕРіРѕ РјРµС‚РѕРґР°
 		response.body() = json_detail::GetSessionPlayersList(session->cbegin(), session->cend());
 
 		return response;
 	}
-	// Возвращает ответ, о успешном добавлении игрока в игровую сессию
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚, Рѕ СѓСЃРїРµС€РЅРѕРј РґРѕР±Р°РІР»РµРЅРёРё РёРіСЂРѕРєР° РІ РёРіСЂРѕРІСѓСЋ СЃРµСЃСЃРёСЋ
 	http_handler::Response GameHandler::join_game_response_impl(http_handler::StringRequest&& req, json::value&& body, const model::Map* map) {
 		
-		Player* new_player = nullptr;        // заготовка под нового челика на сервере
-		std::shared_ptr<GameSession> ref;    // заготовка под указатель на конкретную игровую сессию
+		Player* new_player = nullptr;        // Р·Р°РіРѕС‚РѕРІРєР° РїРѕРґ РЅРѕРІРѕРіРѕ С‡РµР»РёРєР° РЅР° СЃРµСЂРІРµСЂРµ
+		std::shared_ptr<GameSession> ref;    // Р·Р°РіРѕС‚РѕРІРєР° РїРѕРґ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РєРѕРЅРєСЂРµС‚РЅСѓСЋ РёРіСЂРѕРІСѓСЋ СЃРµСЃСЃРёСЋ
 
-		// смотрим есть ли на данный момент открытый игровой инстанс по данной карте
+		// СЃРјРѕС‚СЂРёРј РµСЃС‚СЊ Р»Рё РЅР° РґР°РЅРЅС‹Р№ РјРѕРјРµРЅС‚ РѕС‚РєСЂС‹С‚С‹Р№ РёРіСЂРѕРІРѕР№ РёРЅСЃС‚Р°РЅСЃ РїРѕ РґР°РЅРЅРѕР№ РєР°СЂС‚Рµ
 		if (instances_.count(map)) {
-			// если инстанс есть, получаем его данные
+			// РµСЃР»Рё РёРЅСЃС‚Р°РЅСЃ РµСЃС‚СЊ, РїРѕР»СѓС‡Р°РµРј РµРіРѕ РґР°РЅРЅС‹Рµ
 			auto instance = instances_.at(map);
-			// начинаем опрашивать все внутренние сессии в инстансе на предмет наличия свободного места
-			// так как инстанс не создаётся без нужды, то хотя бы одна игровая сессия быть должна
+			// РЅР°С‡РёРЅР°РµРј РѕРїСЂР°С€РёРІР°С‚СЊ РІСЃРµ РІРЅСѓС‚СЂРµРЅРЅРёРµ СЃРµСЃСЃРёРё РІ РёРЅСЃС‚Р°РЅСЃРµ РЅР° РїСЂРµРґРјРµС‚ РЅР°Р»РёС‡РёСЏ СЃРІРѕР±РѕРґРЅРѕРіРѕ РјРµСЃС‚Р°
+			// С‚Р°Рє РєР°Рє РёРЅСЃС‚Р°РЅСЃ РЅРµ СЃРѕР·РґР°С‘С‚СЃСЏ Р±РµР· РЅСѓР¶РґС‹, С‚Рѕ С…РѕС‚СЏ Р±С‹ РѕРґРЅР° РёРіСЂРѕРІР°СЏ СЃРµСЃСЃРёСЏ Р±С‹С‚СЊ РґРѕР»Р¶РЅР°
 
-			bool have_a_plance = false;      // вводим переменную для отслеживания наличия мест в текущих сессиях
+			bool have_a_plance = false;      // РІРІРѕРґРёРј РїРµСЂРµРјРµРЅРЅСѓСЋ РґР»СЏ РѕС‚СЃР»РµР¶РёРІР°РЅРёСЏ РЅР°Р»РёС‡РёСЏ РјРµСЃС‚ РІ С‚РµРєСѓС‰РёС… СЃРµСЃСЃРёСЏС…
 			for (auto& item : instance) {
-				// если нашли свободное место
+				// РµСЃР»Рё РЅР°С€Р»Рё СЃРІРѕР±РѕРґРЅРѕРµ РјРµСЃС‚Рѕ
 				if (item->have_free_space()) {
 
-					ref = item;              // записываем ссылку на шару сессии
-					have_a_plance = true;    // ставим флаг, что место нашли
-					break;                   // завершаем цикл за ненадобностью
+					ref = item;              // Р·Р°РїРёСЃС‹РІР°РµРј СЃСЃС‹Р»РєСѓ РЅР° С€Р°СЂСѓ СЃРµСЃСЃРёРё
+					have_a_plance = true;    // СЃС‚Р°РІРёРј С„Р»Р°Рі, С‡С‚Рѕ РјРµСЃС‚Рѕ РЅР°С€Р»Рё
+					break;                   // Р·Р°РІРµСЂС€Р°РµРј С†РёРєР» Р·Р° РЅРµРЅР°РґРѕР±РЅРѕСЃС‚СЊСЋ
 				}
 			}
 
-			// если место было найдено, то ничего делать не надо - ref у нас есть, ниже по коду будет добавлен челик и создан ответ
+			// РµСЃР»Рё РјРµСЃС‚Рѕ Р±С‹Р»Рѕ РЅР°Р№РґРµРЅРѕ, С‚Рѕ РЅРёС‡РµРіРѕ РґРµР»Р°С‚СЊ РЅРµ РЅР°РґРѕ - ref Сѓ РЅР°СЃ РµСЃС‚СЊ, РЅРёР¶Рµ РїРѕ РєРѕРґСѓ Р±СѓРґРµС‚ РґРѕР±Р°РІР»РµРЅ С‡РµР»РёРє Рё СЃРѕР·РґР°РЅ РѕС‚РІРµС‚
 			if (!have_a_plance) {
-				// если же мест в текущих открытых сессиях НЕ найдено, ну вот нету, значит надо открыть новую
+				// РµСЃР»Рё Р¶Рµ РјРµСЃС‚ РІ С‚РµРєСѓС‰РёС… РѕС‚РєСЂС‹С‚С‹С… СЃРµСЃСЃРёСЏС… РќР• РЅР°Р№РґРµРЅРѕ, РЅСѓ РІРѕС‚ РЅРµС‚Сѓ, Р·РЅР°С‡РёС‚ РЅР°РґРѕ РѕС‚РєСЂС‹С‚СЊ РЅРѕРІСѓСЋ
 				ref = instances_.at(map)
-					.emplace_back(std::make_shared<GameSession>(*this, map, 8));
+					.emplace_back(std::make_shared<GameSession>(*this, map, 200));
 			}
 		}
 
-		// если нет ни одной открытой сессии на данной карте
+		// РµСЃР»Рё РЅРµС‚ РЅРё РѕРґРЅРѕР№ РѕС‚РєСЂС‹С‚РѕР№ СЃРµСЃСЃРёРё РЅР° РґР°РЅРЅРѕР№ РєР°СЂС‚Рµ
 		else {
-			// добавляем указатель и создаём инстанс со списком сессий
+			// РґРѕР±Р°РІР»СЏРµРј СѓРєР°Р·Р°С‚РµР»СЊ Рё СЃРѕР·РґР°С‘Рј РёРЅСЃС‚Р°РЅСЃ СЃРѕ СЃРїРёСЃРєРѕРј СЃРµСЃСЃРёР№
 			instances_.insert(std::make_pair(map, GameInstance()));
-			// так как у нас еще нет никакие сессий то тупо создаём новую внутри 
-			// c максимумом, для примера, в 8 игроков (см. конструктор GameSession)
-			// тут же получаем шару на неё, и передаем ей управление по вступлению в игру
+			// С‚Р°Рє РєР°Рє Сѓ РЅР°СЃ РµС‰Рµ РЅРµС‚ РЅРёРєР°РєРёРµ СЃРµСЃСЃРёР№ С‚Рѕ С‚СѓРїРѕ СЃРѕР·РґР°С‘Рј РЅРѕРІСѓСЋ РІРЅСѓС‚СЂРё 
+			// c РјР°РєСЃРёРјСѓРјРѕРј, РґР»СЏ РїСЂРёРјРµСЂР°, РІ 8 РёРіСЂРѕРєРѕРІ (СЃРј. РєРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ GameSession)
+			// С‚СѓС‚ Р¶Рµ РїРѕР»СѓС‡Р°РµРј С€Р°СЂСѓ РЅР° РЅРµС‘, Рё РїРµСЂРµРґР°РµРј РµР№ СѓРїСЂР°РІР»РµРЅРёРµ РїРѕ РІСЃС‚СѓРїР»РµРЅРёСЋ РІ РёРіСЂСѓ
 			ref = instances_.at(map)
-				.emplace_back(std::make_shared<GameSession>(*this, map, 8));
+				.emplace_back(std::make_shared<GameSession>(*this, map, 200));
 		}
 
-		// добавляем челика на сервер и принимаем на него указатель
+		// РґРѕР±Р°РІР»СЏРµРј С‡РµР»РёРєР° РЅР° СЃРµСЂРІРµСЂ Рё РїСЂРёРЅРёРјР°РµРј РЅР° РЅРµРіРѕ СѓРєР°Р·Р°С‚РµР»СЊ
 		new_player = ref->add_new_player(body.at("userName").as_string());
 
-		// подготавливаем и возвращаем ответ
+		// РїРѕРґРіРѕС‚Р°РІР»РёРІР°РµРј Рё РІРѕР·РІСЂР°С‰Р°РµРј РѕС‚РІРµС‚
 		http_handler::StringResponse response(http::status::ok, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
@@ -357,7 +378,7 @@ namespace game_handler {
 
 		return response;
 	}
-	// Возвращает ответ, что упомянутая карта не найдена
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚, С‡С‚Рѕ СѓРїРѕРјСЏРЅСѓС‚Р°СЏ РєР°СЂС‚Р° РЅРµ РЅР°Р№РґРµРЅР°
 	http_handler::Response GameHandler::map_not_found_response_impl(http_handler::StringRequest&& req) {
 		http_handler::StringResponse response(http::status::not_found, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
@@ -366,7 +387,7 @@ namespace game_handler {
 
 		return response;
 	}
-	// Возвращает ответ, что запрошенный метод не ражрешен, доступный указывается в аргументе allow
+	// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕС‚РІРµС‚, С‡С‚Рѕ Р·Р°РїСЂРѕС€РµРЅРЅС‹Р№ РјРµС‚РѕРґ РЅРµ СЂР°Р¶СЂРµС€РµРЅ, РґРѕСЃС‚СѓРїРЅС‹Р№ СѓРєР°Р·С‹РІР°РµС‚СЃСЏ РІ Р°СЂРіСѓРјРµРЅС‚Рµ allow
 	http_handler::Response GameHandler::method_not_allowed_impl(http_handler::StringRequest&& req, std::string_view allow) {
 		http_handler::StringResponse response(http::status::method_not_allowed, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
@@ -377,4 +398,27 @@ namespace game_handler {
 		return response;
 	}
 	
+	namespace detail {
+
+		std::optional<std::string> BearerParser(std::string&& auth_line) {
+
+			if (auth_line.size() < 8) {
+				// РµСЃР»Рё РІ СЃС‚СЂРѕРєРµ РјРµРЅСЊС€Рµ С‡РµРј "Bearer " РїР»СЋСЃ С…РѕС‚СЊ РѕРґРёРЅ СЃРёРјРІРѕР»
+				return std::nullopt;
+			}
+			else {
+
+				std::string bearer{ auth_line.begin(), auth_line.begin() + 7 };
+				if (bearer != "Bearer ") {
+					// РЅР°С‡Р°Р»СЊРЅР°СЏ СЃС‚СЂРѕРєР° РґРѕР»Р¶РЅР° Р±С‹С‚СЊ С‚Р°РєРѕР№ РєР°Рє РІ СѓСЃР»РѕРІРёРё
+					return std::nullopt;
+				}
+				else {
+					return std::string{ auth_line.begin() + 7, auth_line.end() };
+				}
+			}
+		}
+
+	} // namespace detail
+
 } //namespace game_handler

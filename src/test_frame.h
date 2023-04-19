@@ -1,6 +1,6 @@
-#pragma once
+п»ї#pragma once
 
-#include "boost_json.h"           // отсюда получим работу с JSON и domain.h с базовыми инклюдами
+#include "boost_json.h"           // РѕС‚СЃСЋРґР° РїРѕР»СѓС‡РёРј СЂР°Р±РѕС‚Сѓ СЃ JSON Рё domain.h СЃ Р±Р°Р·РѕРІС‹РјРё РёРЅРєР»СЋРґР°РјРё
 
 #include <boost/beast.hpp>
 #include <boost/asio/connect.hpp>
@@ -35,10 +35,12 @@ namespace test {
 
 		void TestApiGameLogin();
 		void TestApiGameSecondLogin();
+		void TestApiGameNutLogin();
 
 		void TestApiGameLoginMissName();
 		void TestApiGameLoginInvalidName();
 		void TestApiGameLoginMissMap();
+		void TestApiGameLoginInvalidMap();
 		void TestApiGameLoginMapNotFound();
 		
 		void TestApiGameLoginInvalidMethod();
@@ -47,6 +49,7 @@ namespace test {
 		AuthResp TestApiGameThirdLogin();
 		void TestApiGamePlayerList(AuthResp data);
 		void TestApiGameAuthorizationMissBody(AuthResp data);
+		void TestApiGameAuthorizationMissToken(AuthResp data);
 		void TestApiGameAuthorizationMissing(AuthResp data);
 		void TestApiGameTokenNotFound(AuthResp data);
 		void TestApiGamePlayerListInvalidMethod(AuthResp data);
