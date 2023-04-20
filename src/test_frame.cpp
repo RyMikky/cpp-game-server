@@ -1462,7 +1462,7 @@ namespace test {
             http::request<http::string_body> req{ http::verb::get, "/api/v1/game/players"sv, 11 };
             req.set(http::field::host, endpoint_->endpoint().address().to_string());
             req.set(http::field::content_type, "application/json"sv);
-            req.set(http::field::authorization, "Bearer 68f75asfdsff");
+            req.set(http::field::authorization, "Bearer 68f75asfdsffaa457a98f7v5d6z4f8f4");
             req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
 
             // отправляем запрос на сервер
@@ -1726,7 +1726,7 @@ namespace test {
                 // проверяем allows
                 auto const& allow = res.find(http::field::allow);
                 if (allow != res.end()) {
-                    assert(allow->value() == "GET"sv);
+                    assert(allow->value() == "GET, HEAD"sv);
                 }
                 else {
                     assert(false);
@@ -1778,7 +1778,7 @@ namespace test {
             http::request<http::string_body> req{ http::verb::get, "/api/v1/game/state"sv, 11 };
             req.set(http::field::host, endpoint_->endpoint().address().to_string());
             req.set(http::field::content_type, "application/json"sv);
-            req.set(http::field::authorization, "Bearer 6-+f8f75asfdsff");
+            req.set(http::field::authorization, "Bearer ahfyrgfbdkfjthfbsyednfjwpqotnd34");
             req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
 
             // отправляем запрос на сервер

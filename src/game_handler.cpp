@@ -98,9 +98,9 @@ namespace game_handler {
 	// Возвращает ответ на запрос о состоянии игроков в игровой сессии
 	http_handler::Response GameHandler::game_state_response(http_handler::StringRequest&& req) {
 
-		if (req.method_string() != http_handler::Method::GET) {
+		if (req.method_string() != http_handler::Method::GET && req.method_string() != http_handler::Method::HEAD) {
 			// если у нас ни гет и ни хед запрос, то кидаем отбойник
-			return method_not_allowed_impl(std::move(req), http_handler::Method::GET);
+			return method_not_allowed_impl(std::move(req), http_handler::Method::GET, http_handler::Method::HEAD);
 		}
 
 		try
@@ -475,7 +475,17 @@ namespace game_handler {
 					return std::nullopt;
 				}
 				else {
-					return std::string{ auth_line.begin() + 7, auth_line.end() };
+
+					std::string token{ auth_line.begin() + 7, auth_line.end() };
+
+					if (token.size() != 32) {
+						return std::nullopt;
+					}
+					else {
+						return token;
+					}
+
+					//return std::string{ auth_line.begin() + 7, auth_line.end() };
 				}
 			}
 		}

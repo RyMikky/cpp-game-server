@@ -1,4 +1,4 @@
 {
    "code": "invalidMethod", 
-   "message": "Only GET method is expected"
+   "message": "Invalid method"
 } 
