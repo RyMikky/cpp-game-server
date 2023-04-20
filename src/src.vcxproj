@@ -26,6 +26,7 @@
     <ClCompile Include="logger_handler.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="model.cpp" />
+    <ClCompile Include="player.cpp" />
     <ClCompile Include="request_handler.cpp" />
     <ClCompile Include="resource_handler.cpp" />
     <ClCompile Include="test_frame.cpp" />
@@ -39,6 +40,7 @@
     <ClInclude Include="json_loader.h" />
     <ClInclude Include="logger_handler.h" />
     <ClInclude Include="model.h" />
+    <ClInclude Include="player.h" />
     <ClInclude Include="request_handler.h" />
     <ClInclude Include="resource_handler.h" />
     <ClInclude Include="sdk.h" />

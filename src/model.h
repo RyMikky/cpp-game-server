@@ -2,6 +2,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <mutex>
 
 #include "tagged.h"
 
@@ -26,6 +27,8 @@ namespace model {
     struct Offset {
         Dimension dx, dy;
     };
+
+    int random_integer(int from, int to);
 
     class Road {
         struct HorizontalTag {
@@ -65,6 +68,8 @@ namespace model {
         Point GetEnd() const noexcept {
             return end_;
         }
+
+        Point GetRandomPosition() const;
 
     private:
         Point start_;
@@ -122,7 +127,14 @@ namespace model {
 
         Map(Id id, std::string name) noexcept
             : id_(std::move(id))
-            , name_(std::move(name)) {
+            , name_(std::move(name))
+            , dog_speed_(0u) {
+        }
+
+        Map(Id id, std::string name, double dog_speed) noexcept
+            : id_(std::move(id))
+            , name_(std::move(name))
+            , dog_speed_(dog_speed) {
         }
 
         const Id& GetId() const noexcept {
@@ -155,6 +167,17 @@ namespace model {
 
         void AddOffice(Office office);
 
+        void SetDogSpeed(double speed) {
+            dog_speed_ = speed;
+        }
+        double GetDogSpeed() const {
+            return dog_speed_;
+        }
+        
+        Point GetRandomRoadPosition() const {
+            return GetRandomRoad().GetRandomPosition();
+        }
+
     private:
         using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;
 
@@ -162,9 +185,12 @@ namespace model {
         std::string name_;
         Roads roads_;
         Buildings buildings_;
+        double dog_speed_;
 
         OfficeIdToIndex warehouse_id_to_index_;
         Offices offices_;
+
+        const Road& GetRandomRoad() const;
     };
 
     class Game {

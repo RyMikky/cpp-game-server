@@ -30,6 +30,7 @@ namespace test {
 
 		void TestApiMapsList();
 		void TestApiMapOne();
+		void TestApiMapTown();
 		void TestApiMapNotFound();
 		void TestApiBadRequest();
 
@@ -53,6 +54,12 @@ namespace test {
 		void TestApiGameAuthorizationMissing(AuthResp data);
 		void TestApiGameTokenNotFound(AuthResp data);
 		void TestApiGamePlayerListInvalidMethod(AuthResp data);
+
+		void TestApiGameState(AuthResp data);
+		void TestApiGameStateInvalidMethod(AuthResp data);
+		void TestApiGameStateTokenNotFound(AuthResp data);
+
+
 		void TestAuthorizationSet();
 
 	};

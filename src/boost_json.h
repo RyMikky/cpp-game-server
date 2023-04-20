@@ -46,4 +46,10 @@ namespace json_detail {
 	// возвращает строковое представление json_словаря с информацией о всех игроках в указанной сессии
 	std::string GetSessionPlayersList(game_handler::SPIterator begin, game_handler::SPIterator end);
 
+	// возвращает строковое представление json_словаря с информацией о всех игроках в указанной сессии
+	std::string GetSessionPlayersList(const game_handler::SessionPlayers& players);
+
+	// возвращает строковое представление json_словаря с информацией о состоянии в указанной сессии
+	std::string GetSessionStateList(const game_handler::SessionPlayers& players);
+
 } // namespace json_detail

@@ -7,16 +7,6 @@ namespace game_handler {
 	namespace fs = std::filesystem;
 	namespace json = boost::json;
 
-	size_t TokenHasher::operator()(const Token& token) const noexcept {
-		// Возвращает хеш значения, хранящегося внутри token
-		return _hasher(*token);
-	}
-
-	size_t TokenPtrHasher::operator()(const Token* token) const noexcept {
-		// Возвращает хеш значения, хранящегося внутри token
-		return _hasher(*(*token));
-	}
-
 	// -------------------------- class GameSession --------------------------
 
 	// отвечает есть ли в сессии свободное местечко
@@ -33,9 +23,28 @@ namespace game_handler {
 		if (id != players_id_.end()) {
 			// если место есть, то запрашиваем уникальный токен
 			const Token* player_token = game_handler_.get_unique_token(shared_from_this());
+
+			// чтобы получить случайную позицию на какой-нибудь дороге на карте начнём цикл поиска места
+			bool findPlase = true;        // реверсивный флаг, который сделаем false, когда найдём место
+			PlayerPosition position;      // заготовка под позицию установки нового игрока
+			while (findPlase)
+			{
+				// спрашиваем у карты случайную точку на какой-нибудь дороге
+				model::Point point = session_game_map_->GetRandomRoadPosition();
+				// переводим точку в позицию
+				position.x_ = point.x; 
+				position.y_ = point.y;
+				// проверяем на совпадение позиции с уже имеющимися игроками и инвертируем вывод метода
+				findPlase = !start_position_check_impl(position);
+			}
+
 			// создаём игрока в текущей игровой сессии
-			session_players_[player_token] = 
-				std::move(Player{ uint16_t(std::distance(players_id_.begin(), id)), name, player_token });
+			session_players_[player_token] = std::move(
+				Player{ uint16_t(std::distance(players_id_.begin(), id)), name, player_token }
+					.set_position(std::move(position))               // назначаем стартовую позицию
+					.set_direction(PlayerDirection::NORTH)                  // назначаем дефолтное направление взгляда
+					.set_speed({ 0, 0 }));                            // назначаем стартовую скорость
+					
 			// делаем пометку в булевом массиве
 			*id = true;
 
@@ -67,6 +76,18 @@ namespace game_handler {
 		return nullptr;
 	}
 
+	// чекает стартовую позицию на предмет совпадения с другими игроками в сессии
+	bool GameSession::start_position_check_impl(PlayerPosition& position) {
+
+		for (const auto& item : session_players_) {
+			// если нашли поцизию совпадающую с запрошенной то выходим с false
+			if (position == item.second.get_position()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	// -------------------------- class GameHandler --------------------------
 
 	size_t MapPtrHasher::operator()(const model::Map* map) const noexcept {
@@ -74,11 +95,38 @@ namespace game_handler {
 		return _hasher(map->GetName()) + _hasher(*(map->GetId()));
 	}
 
-	// Обеспечивает вход игрока в игровую сессию
-	std::string enter_to_game_session(std::string_view name, std::string_view map) {
-		return {};
-	}
+	// Возвращает ответ на запрос о состоянии игроков в игровой сессии
+	http_handler::Response GameHandler::game_state_response(http_handler::StringRequest&& req) {
 
+		if (req.method_string() != http_handler::Method::GET) {
+			// если у нас ни гет и ни хед запрос, то кидаем отбойник
+			return method_not_allowed_impl(std::move(req), http_handler::Method::GET);
+		}
+
+		try
+		{
+			// запрашиваем проверку токена в соответствующем методе
+			Authorization authorization = authorization_token_impl(req);
+
+			if (std::holds_alternative<http_handler::Response>(authorization)) {
+				// если у нас кривой токен или какой косяк с авторизацией, то сразу отдаём ответ с косяком
+				return std::move(std::get<http_handler::Response>(authorization));
+			}
+			else if (std::holds_alternative<Token>(authorization)) {
+				// если токен таки есть, тогда отправляемся в непосредственную имплементацию метода
+				// в методе будет взята сессия и по ней составлен json-блок тела ответа
+				return game_state_response_impl(std::move(req),
+					std::move(std::get<Token>(authorization)));
+
+			} else {
+				throw std::runtime_error("GameHandler::player_list_response::authorization == std::monostate");
+			}
+		}
+		catch (const std::exception& e)
+		{
+			throw std::runtime_error("GameHandler::game_state_response::error" + std::string(e.what()));
+		}
+	}
 	// Возвращает ответ на запрос о списке игроков в данной сессии
 	http_handler::Response GameHandler::player_list_response(http_handler::StringRequest&& req) {
 
@@ -89,35 +137,23 @@ namespace game_handler {
 
 		try
 		{
-			// ищем тушку авторизации среди хеддеров запроса
-			auto auth_iter = req.find("Authorization");
-			if (auth_iter == req.end()) {
-				// если нет тушки по авторизации, тогда кидаем отбойник
-				return unauthorized_response(std::move(req),
-					"invalidToken"sv, "Authorization header is missing"sv);
-			}
+			// запрашиваем проверку токена в соответствующем методе
+			Authorization authorization = authorization_token_impl(req);
 
-			// из тушки запроса получаем строку
-			// так как строка должна иметь строгий вид Bearer <токен>, то мы легко можем распарсить её
-			auto auth_reparse = detail::BearerParser({ auth_iter->value().begin(), auth_iter->value().end() });
-
-			if (!auth_reparse) {
-				// если нет строки Bearer, или она корявая, или токен пустой, то кидаем отбойник
-				return unauthorized_response(std::move(req),
-					"invalidToken"sv, "Authorization header is missing"sv);
+			if (std::holds_alternative<http_handler::Response>(authorization)) {
+				// если у нас кривой токен или какой косяк с авторизацией, то сразу отдаём ответ с косяком
+				return std::move(std::get<http_handler::Response>(authorization));
 			}
-
-			Token req_token{ auth_reparse.value() }; // создаём быстро токен на основе запроса и ищем совпадение во внутреннем массиве
-			if (!tokens_list_.count(req_token)) {
-				// если заголовок Authorization содержит валидное значение токена, но в игре нет пользователя с таким токеном
-				return unauthorized_response(std::move(req),
-					"unknownToken"sv, "Player token has not been found"sv);
-			}
-			else {
+			else if (std::holds_alternative<Token>(authorization)) {
 				// если токен таки есть, тогда отправляемся в непосредственную имплементацию метода
 				// если токен таки есть, тогда уже берем сессию, где он "висит" и запрашиваем инфу о всех подключенных игроках
-				return player_list_response_impl(std::move(req), std::move(req_token));
+				return player_list_response_impl(std::move(req), 
+					std::move(std::get<Token>(authorization)));
 			}
+			else {
+				throw std::runtime_error("GameHandler::player_list_response::authorization == std::monostate");
+			}
+
 		}
 		catch (const std::exception& e)
 		{
@@ -134,26 +170,6 @@ namespace game_handler {
 
 		try
 		{
-			
-
-			//for (auto& item : req) {
-			//	std::cerr << item.name_string() << " : " << item.value() << std::endl;
-			//}
-			//auto b = req.body();
-
-			//// ищем тушку среди хеддеров запроса
-			//auto body_iter = req.find("Body");
-			//if (body_iter == req.end()) {
-			//	// если нет тела запроса, тогда запрашиваем
-			//	return bad_request_response(std::move(req), 
-			//		"invalidArgument"sv, "Header body whit two arguments <userName> and <mapId> expected"sv);
-			//}
-			//// из тушки запроса получаем строку
-			//std::string body_string{ body_iter->value().begin(), body_iter->value().end() };
-			//// парсим тело запроса, все исключения в процессе будем ловить в catch_блоке
-			//json::value req_data = json_detail::ParseTextToBoostJson(body_string);
-
-
 			if (req.body().size() == 0) {
 				// если нет тела запроса, тогда запрашиваем
 				return bad_request_response(std::move(req),
@@ -308,7 +324,21 @@ namespace game_handler {
 		}
 	}
 
+	// Возвращает ответ на запрос о состоянии игроков в игровой сессии
+	http_handler::Response GameHandler::game_state_response_impl(http_handler::StringRequest&& req, Token&& token) {
+		
+		// получаем сессию где на данный момент "висит" указанный токен
+		std::shared_ptr<GameSession> session = tokens_list_.at(token);
 
+		// подготавливаем и возвращаем ответ
+		http_handler::StringResponse response(http::status::ok, req.version());
+		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
+		response.set(http::field::cache_control, "no-cache");
+		// заполняем тушку ответа с помощью жисонского метода
+		response.body() = json_detail::GetSessionStateList(session->get_session_players());
+
+		return response;
+	}
 	// Возвращает ответ на запрос о списке игроков в данной сессии
 	http_handler::Response GameHandler::player_list_response_impl(http_handler::StringRequest&& req, Token&& token) {
 
@@ -320,7 +350,7 @@ namespace game_handler {
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
 		// заполняем тушку ответа с помощью жисонского метода
-		response.body() = json_detail::GetSessionPlayersList(session->cbegin(), session->cend());
+		response.body() = json_detail::GetSessionPlayersList(session->get_session_players());
 
 		return response;
 	}
@@ -396,6 +426,37 @@ namespace game_handler {
 		response.body() = json_detail::GetErrorString("invalidMethod"sv, ("Only "s + std::string(allow) + " method is expected"s));
 
 		return response;
+	}
+
+	// метод проверяющий совпадение токена с предоставленным, если токен корректнен и есть в базе, то возвращается токен
+	Authorization GameHandler::authorization_token_impl(http_handler::StringRequest& req) {
+
+		// ищем тушку авторизации среди хеддеров запроса
+		auto auth_iter = req.find("Authorization");
+		if (auth_iter == req.end()) {
+			// если нет тушки по авторизации, тогда кидаем отбойник
+			return unauthorized_response(std::move(req),
+				"invalidToken"sv, "Authorization header is missing"sv);
+		}
+
+		// из тушки запроса получаем строку
+		// так как строка должна иметь строгий вид Bearer <токен>, то мы легко можем распарсить её
+		auto auth_reparse = detail::BearerParser({ auth_iter->value().begin(), auth_iter->value().end() });
+
+		if (!auth_reparse) {
+			// если нет строки Bearer, или она корявая, или токен пустой, то кидаем отбойник
+			return unauthorized_response(std::move(req),
+				"invalidToken"sv, "Authorization header is missing"sv);
+		}
+
+		Token req_token{ auth_reparse.value() }; // создаём быстро токен на основе запроса и ищем совпадение во внутреннем массиве
+		if (!tokens_list_.count(req_token)) {
+			// если заголовок Authorization содержит валидное значение токена, но в игре нет пользователя с таким токеном
+			return unauthorized_response(std::move(req),
+				"unknownToken"sv, "Player token has not been found"sv);
+		}
+
+		return req_token;
 	}
 	
 	namespace detail {

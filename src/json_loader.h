@@ -4,7 +4,6 @@
 #include <fstream>
 
 #include "boost_json.h"              // все инклюды получим из базовой системы и domain.h
-//#include "domain.h"                // все базовые инклюды находятся в домейн
 
 namespace json_loader {
 
@@ -23,6 +22,9 @@ namespace json_loader {
 
 		// базовый парсер элементов полученного config.json
 		model::Game ParseGameMapsData(json::value&& maps);
+
+		// базовый парсер элементов полученного config.json, вместе с базовой скоростью
+		model::Game ParseGameMapsData(json::value&& maps, double default_dog_speed);
 
 	} // namespace detail
 

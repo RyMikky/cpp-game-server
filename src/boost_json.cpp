@@ -156,4 +156,65 @@ namespace json_detail {
 		return json::serialize(result);
 	}
 
+	// возвращает строковое представление json_словаря с информацией о всех игроках в указанной сессии
+	std::string GetSessionPlayersList(const game_handler::SessionPlayers& players) {
+
+		json::object result;          // базовый ресурс ответа
+
+		for (const auto& it : players) {
+
+			result.emplace(
+				std::to_string(it.second.get_player_id()),
+				json::object{ {"name", it.second.get_player_name()} }
+			);
+		}
+
+		return json::serialize(result);
+	}
+
+	// возвращает строковое представление json_словаря с информацией о состоянии в указанной сессии
+	std::string GetSessionStateList(const game_handler::SessionPlayers& players) {
+
+		json::object players_list;                  // базовый словарь с данными
+
+		for (const auto& it : players) {
+
+			json::object player_data;               // объект игрок в котором будут все данные
+
+			json::array pos {                       // данные по позиции
+				it.second.get_position().x_, 
+				it.second.get_position().y_ };
+
+			json::array speed{                      // данные по скорости
+				it.second.get_speed().xV_,
+				it.second.get_speed().yV_ };
+
+			player_data.emplace("pos", pos);
+			player_data.emplace("speed", speed);
+
+			switch (it.second.get_direction())
+			{
+			default:
+				case game_handler::PlayerDirection::NORTH:
+					player_data.emplace("dir", "U");
+					break;
+				case game_handler::PlayerDirection::SOUTH:
+					player_data.emplace("dir", "D");
+					break;
+				case game_handler::PlayerDirection::WEST:
+					player_data.emplace("dir", "L");
+					break;
+				case game_handler::PlayerDirection::EAST:
+					player_data.emplace("dir", "R");
+					break;
+				break;
+			}
+			
+			players_list.emplace(
+				std::to_string(it.second.get_player_id()), player_data);
+		}
+
+		return json::serialize(json::object{ {"players", players_list} });
+	}
+
 } // namespace json_detail

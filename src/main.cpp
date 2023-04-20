@@ -8,9 +8,7 @@
 #include <cassert>
 
 #include "logger_handler.h"                          // базовый инклюд обеспечивающий доступ к логгеру в данном участке кода
-//#include "json_loader.h"                             
 #include "request_handler.h"                         // базовый инклюд открывающий доступ к серверу, обработчику ресурсов
-//#include "game_handler.h"                            // базовый инклюд открывающий доступ к игровой модели и json_блоку
 #include "test_frame.h"
 
 using namespace std::literals;

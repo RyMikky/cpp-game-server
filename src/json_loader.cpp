@@ -30,7 +30,6 @@ namespace json_loader {
                     }
                 );
             }
-
         };
 
         // парсер элементов карты - офисы
@@ -131,6 +130,46 @@ namespace json_loader {
             return result;                       // возвращаем результат работы конфигураторов
         }
 
+        // базовый парсер элементов полученного config.json, вместе с базовой скоростью
+        model::Game ParseGameMapsData(json::value&& maps, double default_god_speed) {
+
+            model::Game result;  // создаём пустое возвращаемое значение
+
+            // начинаем перебирать массив с данными по картам
+            for (auto element : maps.as_array()) {
+
+                // создаём карту по полученным данным
+                model::Map map{
+                    model::Map::Id {
+                        element.at("id").as_string().data()
+                    },
+                    element.at("name").as_string().data()
+                    // сюда можно было бы вставить тренарник, но... блин, так читабельней
+                };
+
+                // если элемент как словарь имеет запись о скорости песелей
+                if (element.as_object().count("dogSpeed")) {
+                    // назначаем сеттером скорость из словаря
+                    map.SetDogSpeed(element.at("dogSpeed").as_double());
+                }
+                else {
+                    map.SetDogSpeed(default_god_speed);
+                }
+
+                // парсим данные по дорогам, домам и офисам
+                // если данных нет, то будет выкинуто исключение, что собственно прекратит работу
+                ParseMapRoadsData(map, element.at("roads").as_array());
+                ParseMapOfficesData(map, element.at("offices").as_array());
+                ParseMapBuildingsData(map, element.at("buildings").as_array());
+
+                result.AddMap(map);              // не забываем добавить созданную карту в игру
+            }
+
+            return result;                       // возвращаем результат работы конфигураторов
+        }
+
+
+
     } // namespace detail
 
     model::Game LoadGame(const std::filesystem::path& json_path) {
@@ -149,19 +188,30 @@ namespace json_loader {
         std::string text(
             (std::istreambuf_iterator<char>(file)),std::istreambuf_iterator<char>());
         
-        // делаем репарсинг данных в boost::json формат
-        auto boost_json_data = json_detail::ParseTextToBoostJson(text);
-
         try
         {
-            // если в полуенном жидомасоне есть массив с картами продолжаем настройку сервера
+            // делаем репарсинг данных в boost::json формат пытаясь сразу преобразоваться в словарь
+            auto boost_json_data = json_detail::ParseTextToBoostJson(text).as_object();
+
+            // в полученном жидомасоне должен быть массив с картами продолжаем настройку сервера
             json::value maps = boost_json_data.at("maps");
-            return detail::ParseGameMapsData(std::move(maps));
+
+            if (boost_json_data.count("defaultDogSpeed")) {
+                // если в словаре есть упоминание о дефолтной скорости
+                // то берем запись, сразу конвертируем в double и вызываем соответствующую перегрузку
+                return detail::ParseGameMapsData(std::move(maps),
+                    boost_json_data.at("defaultDogSpeed").as_double());
+            }
+            else {
+                return detail::ParseGameMapsData(std::move(maps));
+            }
         }
-        catch (const std::exception&)
+        catch (const std::exception& e)
         {
-            // иначе бросаем исключение, что данных то по факту нету
-            throw std::runtime_error("configure JSON has no key \"maps\"");
+            // на все исключения кидаем отбойник дальше по цепочке вызова
+            throw std::runtime_error("json_loader::LoadGame::ParseError::" + std::string(e.what()));
+            
+            //throw std::runtime_error("configure JSON has no key \"maps\"");
         }
     }
 

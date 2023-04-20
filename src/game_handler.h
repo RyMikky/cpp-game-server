@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "domain.h"
-//#include "model.h"
 #include "json_loader.h"
 #include "boost_json.h"
 
@@ -11,6 +10,7 @@
 #include <filesystem>
 #include <numeric>
 #include <optional>
+#include <variant>
 #include <unordered_map>
 
 namespace game_handler {
@@ -23,7 +23,7 @@ namespace game_handler {
 
 	class GameHandler; // forward-definition
 
-	class TokenHasher {
+	/*class TokenHasher {
 	public:
 		std::size_t operator()(const Token& token) const noexcept;
 	private:
@@ -38,6 +38,7 @@ namespace game_handler {
 	};
 
 	using SessionPlayers = std::unordered_map<const Token*, Player, TokenPtrHasher>;
+	using SessionMapper = std::unordered_map<PosPtr, const Token*, PosPtrHasher>;*/
 
 	// класс-обработчик текущей игровой сессии
 	class GameSession : public std::enable_shared_from_this<GameSession> {
@@ -63,12 +64,25 @@ namespace game_handler {
 		const auto cend() const {
 			return session_players_.cend();
 		}
+		const auto begin() const {
+			return session_players_.begin();
+		}
+		const auto end() const {
+			return session_players_.end();
+		}
+
+		// чекает стартовую позицию на предмет совпадения с другими игроками в сессии
+		const SessionPlayers& get_session_players() const {
+			return session_players_;
+		}
 
 	private:
 		GameHandler& game_handler_;
 		const model::Map* session_game_map_;
 		std::vector<bool> players_id_;
 		SessionPlayers session_players_;
+
+		bool start_position_check_impl(PlayerPosition& position);
 	};
 
 	class MapPtrHasher {
@@ -84,6 +98,8 @@ namespace game_handler {
 	using GameMapInstance = std::unordered_map<const model::Map*, GameInstance, MapPtrHasher>;
 	// структура для быстрого поиска игрока по токену, реализуется реверсивным добавлением из сессии в обработчик
 	using GameTokenList = std::unordered_map<Token, std::shared_ptr<GameSession>, TokenHasher>;
+	// вариант для проверки авторизации в одном методе
+	using Authorization = std::variant<std::monostate, Token, http_handler::Response>;
 
 	class GameHandler {
 		friend class GameSession;
@@ -98,9 +114,8 @@ namespace game_handler {
 			game_simple_ = json_loader::LoadGame(configuration);
 		}
 
-		// Обеспечивает вход игрока в игровую сессию
-		std::string enter_to_game_session(std::string_view name, std::string_view map);
-
+		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
+		http_handler::Response game_state_response(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос о списке игроков в данной сессии
 		http_handler::Response player_list_response(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос по присоединению к игре
@@ -143,6 +158,8 @@ namespace game_handler {
 		const Token* get_unique_token_impl(std::shared_ptr<GameSession> session);
 		bool reset_token_impl(std::string_view token);
 
+		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
+		http_handler::Response game_state_response_impl(http_handler::StringRequest&& req, Token&& token);
 		// Возвращает ответ на запрос о списке игроков в данной сессии
 		http_handler::Response player_list_response_impl(http_handler::StringRequest&& req, Token&& token);
 		// Возвращает ответ, о успешном добавлении игрока в игровую сессию
@@ -151,6 +168,9 @@ namespace game_handler {
 		http_handler::Response map_not_found_response_impl(http_handler::StringRequest&& req);
 		// Возвращает ответ, что запрошенный метод не разрешен, доступные указывается в аргументе allow
 		http_handler::Response method_not_allowed_impl(http_handler::StringRequest&& req, std::string_view allow);
+
+		// метод проверяющий совпадение токена с предоставленным, если токен корректнен и есть в базе, то возвращается токен
+		Authorization authorization_token_impl(http_handler::StringRequest& req);
 	
 		template <typename ...Methods>
 		// Возвращает ответ, что запрошенные методы не разрешены, доступный указывается в аргументе allow

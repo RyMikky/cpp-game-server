@@ -44,31 +44,9 @@ namespace http_handler {
     }
 
     Response RequestHandler::HandleRequest(StringRequest&& req) {
-
-        const auto text_response = [&req, this](http::status status, std::string_view text) {
-            return MakeStringResponse(status, text, req.version(), req.keep_alive());
-        };
-
         // обработка get, head, post будет в другом месте
         return RequestParser(std::move(req));
-
-        //// получаем метод поступившего запроса
-        //http::verb req_method = req.method();
-
-        //switch (req_method)
-        //{
-        //case boost::beast::http::verb::get:
-        //    [[fallthrough]];
-        //case boost::beast::http::verb::head:
-        //    // передаем обработку в парсер запросов
-        //    return RequestParser(std::move(req));
-
-        //default:
-        //    // во всех прочих случаях
-        //    return text_response(http::status::method_not_allowed, "Invalid method"sv);
-        //}
     }
-
 
     // возвращает запрошенный документ
     Response RequestHandler::MainFileBodyResponse(StringRequest&& req, const resource_handler::ResourcePtr& resource) {
@@ -312,6 +290,11 @@ namespace http_handler {
         if (api_request_line == "/v1/game/players"sv) {
             // обрабатываем запрос по выдаче информации о подключенных игроках к сессии
             return game_.player_list_response(std::move(req));
+        }
+
+        if (api_request_line == "/v1/game/state"sv) {
+            // обрабатываем запрос по получению инфы о игровом состоянии персонажей
+            return game_.game_state_response(std::move(req));
         }
 
         // важный момент парсинга - блок сработает только если строка больше 9 символов и первые слова "/v1/maps/"

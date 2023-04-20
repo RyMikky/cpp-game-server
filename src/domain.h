@@ -5,7 +5,8 @@
 
 #include "sdk.h"
 #include "model.h"
-#include "token.h"
+//#include "token.h"
+#include "player.h"
 // boost.beast будет использовать std::string_view вместо boost::string_view
 #define BOOST_BEAST_USE_STD_STRING_VIEW
 
@@ -102,37 +103,27 @@ namespace resource_handler {
 
 namespace game_handler {
 
-    class Player {
+    class TokenHasher {
     public:
-        Player() = default;
-
-        Player(const Player&) = delete;
-        Player& operator=(const Player&) = delete;
-        Player(Player&&) = default;
-        Player& operator=(Player&&) = default;
-
-        Player(uint16_t id, std::string_view name, const Token* token)
-            : id_(id), name_(name), token_(token) {
-        };
-
-        uint16_t get_player_id() const {
-            return id_;
+        std::size_t operator()(const Token& token) const noexcept {
+            return _hasher(*token);
         }
-        std::string_view get_player_name() const {
-            return name_;
-        }
-        std::string_view get_player_token() const {
-            return **token_;
-        }
-
     private:
-        uint16_t id_ = 65535;
-        std::string name_ = "dummy"s;
-        const Token* token_ = nullptr;
+        std::hash<std::string> _hasher;
     };
 
-    using PlayerPtr = const Player*;
+    class TokenPtrHasher {
+    public:
+        std::size_t operator()(const Token* token) const noexcept {
+            return _hasher(*(*token));
+        }
+    private:
+        std::hash<std::string> _hasher;
+    };
+
+    using SessionPlayers = std::unordered_map<const Token*, Player, TokenPtrHasher>;
+    using SessionMapper = std::unordered_map<PosPtr, const Token*, PosPtrHasher>;
 
     using SPIterator = std::unordered_map<const game_handler::Token* const, game_handler::Player>::const_iterator;
-
+ 
 } // namespace game_handler
