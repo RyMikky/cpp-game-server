@@ -105,22 +105,29 @@ namespace game_handler {
 
 		try
 		{
-			// запрашиваем проверку токена в соответствующем методе
-			Authorization authorization = authorization_token_impl(req);
+			return authorization_token_impl(std::move(req),
+				[this](http_handler::StringRequest&& req, Token&& token) {
+					return this->game_state_response_impl(std::move(req), std::move(token));
+				});
 
-			if (std::holds_alternative<http_handler::Response>(authorization)) {
-				// если у нас кривой токен или какой косяк с авторизацией, то сразу отдаём ответ с косяком
-				return std::move(std::get<http_handler::Response>(authorization));
-			}
-			else if (std::holds_alternative<Token>(authorization)) {
-				// если токен таки есть, тогда отправляемся в непосредственную имплементацию метода
-				// в методе будет взята сессия и по ней составлен json-блок тела ответа
-				return game_state_response_impl(std::move(req),
-					std::move(std::get<Token>(authorization)));
+			// старый вариант использования имплементации токена
 
-			} else {
-				throw std::runtime_error("GameHandler::player_list_response::authorization == std::monostate");
-			}
+			//// запрашиваем проверку токена в соответствующем методе
+			//Authorization authorization = authorization_token_impl_old(req);
+
+			//if (std::holds_alternative<http_handler::Response>(authorization)) {
+			//	// если у нас кривой токен или какой косяк с авторизацией, то сразу отдаём ответ с косяком
+			//	return std::move(std::get<http_handler::Response>(authorization));
+			//}
+			//else if (std::holds_alternative<Token>(authorization)) {
+			//	// если токен таки есть, тогда отправляемся в непосредственную имплементацию метода
+			//	// в методе будет взята сессия и по ней составлен json-блок тела ответа
+			//	return game_state_response_impl(std::move(req),
+			//		std::move(std::get<Token>(authorization)));
+
+			//} else {
+			//	throw std::runtime_error("GameHandler::player_list_response::authorization == std::monostate");
+			//}
 		}
 		catch (const std::exception& e)
 		{
@@ -137,22 +144,29 @@ namespace game_handler {
 
 		try
 		{
-			// запрашиваем проверку токена в соответствующем методе
-			Authorization authorization = authorization_token_impl(req);
+			return authorization_token_impl(std::move(req), 
+				[this](http_handler::StringRequest&& req, Token&& token) {
+					return this->player_list_response_impl(std::move(req), std::move(token));
+				});
 
-			if (std::holds_alternative<http_handler::Response>(authorization)) {
-				// если у нас кривой токен или какой косяк с авторизацией, то сразу отдаём ответ с косяком
-				return std::move(std::get<http_handler::Response>(authorization));
-			}
-			else if (std::holds_alternative<Token>(authorization)) {
-				// если токен таки есть, тогда отправляемся в непосредственную имплементацию метода
-				// если токен таки есть, тогда уже берем сессию, где он "висит" и запрашиваем инфу о всех подключенных игроках
-				return player_list_response_impl(std::move(req), 
-					std::move(std::get<Token>(authorization)));
-			}
-			else {
-				throw std::runtime_error("GameHandler::player_list_response::authorization == std::monostate");
-			}
+			// старый вариант использования имплементации токена
+
+			//// запрашиваем проверку токена в соответствующем методе
+			//Authorization authorization = authorization_token_impl(req);
+
+			//if (std::holds_alternative<http_handler::Response>(authorization)) {
+			//	// если у нас кривой токен или какой косяк с авторизацией, то сразу отдаём ответ с косяком
+			//	return std::move(std::get<http_handler::Response>(authorization));
+			//}
+			//else if (std::holds_alternative<Token>(authorization)) {
+			//	// если токен таки есть, тогда отправляемся в непосредственную имплементацию метода
+			//	// если токен таки есть, тогда уже берем сессию, где он "висит" и запрашиваем инфу о всех подключенных игроках
+			//	return player_list_response_impl(std::move(req), 
+			//		std::move(std::get<Token>(authorization)));
+			//}
+			//else {
+			//	throw std::runtime_error("GameHandler::player_list_response::authorization == std::monostate");
+			//}
 
 		}
 		catch (const std::exception& e)
@@ -268,22 +282,9 @@ namespace game_handler {
 	}
 
 	const Token* GameHandler::get_unique_token(std::shared_ptr<GameSession> session) {
-
-		// вариант получения с помощью контекста
-
-		//const Token* result = nullptr;
-		//boost::asio::post(strand_, 
-		//	// получаем токен в стредне с помощью имплементации в приватной области класса
-		//	[this, session, &result]() { result = this->get_unique_token_impl(session); });
-
-		//return result;
-
-		// вариант получения с помощью мьютекса
-
 		std::lock_guard func_lock_(mutex_);
 		return get_unique_token_impl(session);
 	}
-
 	const Token* GameHandler::get_unique_token_impl(std::shared_ptr<GameSession> session) {
 
 		bool isUnique = true;         // создаём реверсивный флаг
@@ -302,12 +303,8 @@ namespace game_handler {
 	}
 
 	bool GameHandler::reset_token(std::string_view token) {
-
-		bool result = false;
-		boost::asio::post(strand_,
-			// удаляем с помощью приватной имплементации
-			[this, token, &result]() { result = reset_token_impl(token); });
-		return result;
+		std::lock_guard func_lock_(mutex_);
+		return reset_token_impl(token);
 	}
 
 	bool GameHandler::reset_token_impl(std::string_view token) {
@@ -429,7 +426,7 @@ namespace game_handler {
 	}
 
 	// метод проверяющий совпадение токена с предоставленным, если токен корректнен и есть в базе, то возвращается токен
-	Authorization GameHandler::authorization_token_impl(http_handler::StringRequest& req) {
+	Authorization GameHandler::authorization_token_impl_old(http_handler::StringRequest& req) {
 
 		// ищем тушку авторизации среди хеддеров запроса
 		auto auth_iter = req.find("Authorization");
@@ -463,8 +460,8 @@ namespace game_handler {
 
 		std::optional<std::string> BearerParser(std::string&& auth_line) {
 
-			if (auth_line.size() < 8) {
-				// если в строке меньше чем "Bearer " плюс хоть один символ
+			if (auth_line.size() != 39) {
+				// если в строке меньше чем "Bearer " плюс 32 символа токена
 				return std::nullopt;
 			}
 			else {

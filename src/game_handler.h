@@ -6,11 +6,13 @@
 
 #include <vector>
 #include <memory>
+#include <thread>
 #include <mutex>
 #include <filesystem>
 #include <numeric>
 #include <optional>
 #include <variant>
+#include <execution>
 #include <unordered_map>
 
 namespace game_handler {
@@ -22,23 +24,6 @@ namespace game_handler {
 	namespace net = boost::asio;
 
 	class GameHandler; // forward-definition
-
-	/*class TokenHasher {
-	public:
-		std::size_t operator()(const Token& token) const noexcept;
-	private:
-		std::hash<std::string> _hasher;
-	};
-
-	class TokenPtrHasher {
-	public:
-		std::size_t operator()(const Token* token) const noexcept;
-	private:
-		std::hash<std::string> _hasher;
-	};
-
-	using SessionPlayers = std::unordered_map<const Token*, Player, TokenPtrHasher>;
-	using SessionMapper = std::unordered_map<PosPtr, const Token*, PosPtrHasher>;*/
 
 	// класс-обработчик текущей игровой сессии
 	class GameSession : public std::enable_shared_from_this<GameSession> {
@@ -106,12 +91,12 @@ namespace game_handler {
 		// даёт доступ игровой сессии, для создания и удаления токенов
 		// такая "сложность" реализуется для скорости поиска игроков в каждой из запущенных сессий
 		// потенциально, в этом особой нужды нет, но тогда, поиск конкретного игрока по токену будет идти циклически 
-		// в каждой из открытыхз сессий путём банального перебора, а так, GameHandler будет "из коробки" знать
+		// в каждой из открытых сессий путём банального перебора, а так, GameHandler будет "из коробки" знать
 		// кто есть в игре и в каком из игровых инстансов со временем поиска в диапазоне от O(N) до O(LogN) - unordered_map
 	public:
-		// отдаём создание игровой модели класус обработчику игры
-		explicit GameHandler(const fs::path& configuration) : io_context_(), strand_(io_context_.get_executor()){
-			game_simple_ = json_loader::LoadGame(configuration);
+		// отдаём создание игровой модели классу обработчику игры
+		explicit GameHandler(const fs::path& configuration)
+			: game_simple_(json_loader::LoadGame(configuration)) {
 		}
 
 		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
@@ -135,21 +120,11 @@ namespace game_handler {
 			Служит для получения уникального токена при добавлении нового игрока.
 		*/
 		const Token* get_unique_token(std::shared_ptr<GameSession> session);
+		//boost::future<const Token*> get_unique_token(std::shared_ptr<GameSession>  session);
 		bool reset_token(std::string_view token);
 
 	private:
 		model::Game game_simple_;
-
-		// контекст и стренд необхордимы для работы в асинхронном режиме
-		// так как обработчик "выдаёт" уникальные токены, то возможна ситуация, когда с двух параллельных потоков прилетит запрос
-		// на создание уникального токена, получаем состояние гонки и потенциальную ошибку генерации уникального токена, потому
-		// генерация и определение уникального токена будет выполняться в странде. Выше сказанное справедливо для всех concurrence
-		// сюда же требуется добавить количество потоков для обработки GameHandler (сделать то же самое, что в мейне RunWorker)
-		net::io_context io_context_;                                  // КОНТЕКСТ ПОКА ЧТО НИГДЕ НЕ АКТИВИРОВАН! ЭТО НА БУДУЩЕЕ
-		net::strand<net::io_context::executor_type> strand_;
-		// в зависимости от проектируемых нагрузок и оборудования для запуска системы, уже по месту надо определять использовать
-		// ли контекст, и если контекст, то в сколько потоков, собственных или общих? или же использовать мьютекс.
-		// на данном этапе контекст не даст прироста производительности потому пока опустим это и будем использовать мьютекс
 		std::mutex mutex_;
 
 		GameMapInstance instances_;
@@ -170,8 +145,11 @@ namespace game_handler {
 		http_handler::Response method_not_allowed_impl(http_handler::StringRequest&& req, std::string_view allow);
 
 		// метод проверяющий совпадение токена с предоставленным, если токен корректнен и есть в базе, то возвращается токен
-		Authorization authorization_token_impl(http_handler::StringRequest& req);
-	
+		Authorization authorization_token_impl_old(http_handler::StringRequest& req);
+
+		// метод проверяющий совпадение токена с предоставленным, если токен корректнен и есть в базе, то возвращается токен
+		template <typename Function>
+		http_handler::Response authorization_token_impl(http_handler::StringRequest&& req, Function&& func);
 		template <typename ...Methods>
 		// Возвращает ответ, что запрошенные методы не разрешены, доступный указывается в аргументе allow
 		http_handler::Response method_not_allowed_impl(http_handler::StringRequest&& req, Methods&& ...methods);
@@ -200,6 +178,37 @@ namespace game_handler {
 		std::optional<std::string> BearerParser(std::string&& auth_line);
 
 	} // namespace detail
+
+	template <typename Function>
+	http_handler::Response GameHandler::authorization_token_impl(http_handler::StringRequest&& req, Function&& func) {
+		// ищем тушку авторизации среди хеддеров запроса
+		auto auth_iter = req.find("Authorization");
+		if (auth_iter == req.end()) {
+			// если нет тушки по авторизации, тогда кидаем отбойник
+			return unauthorized_response(std::move(req),
+				"invalidToken"sv, "Authorization header is missing"sv);
+		}
+
+		// из тушки запроса получаем строку
+		// так как строка должна иметь строгий вид Bearer <токен>, то мы легко можем распарсить её
+		auto auth_reparse = detail::BearerParser({ auth_iter->value().begin(), auth_iter->value().end() });
+
+		if (!auth_reparse) {
+			// если нет строки Bearer, или она корявая, или токен пустой, то кидаем отбойник
+			return unauthorized_response(std::move(req),
+				"invalidToken"sv, "Authorization header is missing"sv);
+		}
+
+		Token token{ auth_reparse.value() }; // создаём быстро токен на основе запроса и ищем совпадение во внутреннем массиве
+		if (!tokens_list_.count(token)) {
+			// если заголовок Authorization содержит валидное значение токена, но в игре нет пользователя с таким токеном
+			return unauthorized_response(std::move(req),
+				"unknownToken"sv, "Player token has not been found"sv);
+		}
+
+		// вызываем полченный обработчик
+		return func(std::move(req), std::move(token));
+	}
 
 	template <typename ...Methods>
 	// Возвращает ответ, что запрошенные методы не разрешены, доступный указывается в аргументе allow

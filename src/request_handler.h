@@ -2,7 +2,6 @@
 #include "http_server.h"
 #include "resource_handler.h"
 #include "game_handler.h"      // подключить boost_json.h и json_loader.h
-//#include "model.h"
 #include "domain.h"
 
 namespace http_handler {

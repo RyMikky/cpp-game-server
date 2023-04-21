@@ -5,17 +5,16 @@
 
 #include "sdk.h"
 #include "model.h"
-//#include "token.h"
 #include "player.h"
 // boost.beast будет использовать std::string_view вместо boost::string_view
 #define BOOST_BEAST_USE_STD_STRING_VIEW
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
+
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 
-//#include "boost_json.h"
 
 #include <unordered_map>
 #include <string_view>
