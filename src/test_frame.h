@@ -46,6 +46,8 @@ namespace test {
 		
 		void TestApiGameLoginInvalidMethod();
 
+		// ---------- блок проверки запроса списка игроков ---------
+
 		using AuthResp = std::pair<std::string, size_t>;
 		AuthResp TestApiGameThirdLogin();
 		void TestApiGamePlayerList(AuthResp data);
@@ -55,10 +57,21 @@ namespace test {
 		void TestApiGameTokenNotFound(AuthResp data);
 		void TestApiGamePlayerListInvalidMethod(AuthResp data);
 
+		// ---------- блок проверки запроса состояния игры ---------
+
 		void TestApiGameState(AuthResp data);
 		void TestApiGameStateInvalidMethod(AuthResp data);
 		void TestApiGameStateTokenNotFound(AuthResp data);
 
+		// ---------- блок проверки записи движения игрока ---------
+
+		void TestApiPlayerMove(AuthResp data);
+		void TestApiPlayerInvalidMethod(AuthResp data);
+		void TestApiPlayerInvalidToken(AuthResp data);
+		void TestApiPlayerTokenNotFound(AuthResp data);
+		void TestApiPlayerInvalidContent(AuthResp data);
+		void TestApiPlayerMissBody(AuthResp data);
+		void TestApiPlayerInvalidBody(AuthResp data);
 
 		void TestAuthorizationSet();
 

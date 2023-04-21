@@ -3,51 +3,6 @@
 
 namespace http_handler {
 
-    // Создаёт StringResponse с заданными параметрами
-    StringResponse RequestHandler::MakeStringResponse(
-        http::status status,
-        std::string_view body,
-        unsigned http_version,
-        bool keep_alive,
-        std::string_view content_type)
-    {
-        StringResponse response(status, http_version);
-        response.set(http::field::content_type, ContentType::TEXT_HTML);
-
-        // если статус некорректного метода, то добавляем строку
-        if (status == http::status::method_not_allowed) {
-            response.set(http::field::allow, "GET, HEAD"sv);
-        }
-
-        response.body() = body;
-        response.content_length(body.size());
-        response.keep_alive(keep_alive);
-        return response;
-    }
-
-    // Обработчик GET-запросов в общем смысле
-    Response RequestHandler::GetMethodHandle(StringRequest&& req) {
-
-        // записываем полную строку запроса без начального слеша в переменную
-        std::string base_request_line{ req.target().begin() + 1, req.target().end() };
-        // либо строка содержит только "api", либо имеет продолжение вида "api/"
-        if ((base_request_line.substr(0, 3) == "api"sv && base_request_line.size() == 3)
-            || base_request_line.substr(0, 4) == "api/"sv) {
-            // передаем управление специализированному методу
-            return ApiGetMethodHandle(std::move(req), { req.target().begin() + 4, req.target().end() });
-        }
-        else {
-            // иначе в случае раннего запроса типа hello возвращаем как есть
-            return MakeStringResponse(
-                http::status::ok, { "Hello, " + base_request_line }, req.version(), req.keep_alive());
-        }
-    }
-
-    Response RequestHandler::HandleRequest(StringRequest&& req) {
-        // обработка get, head, post будет в другом месте
-        return RequestParser(std::move(req));
-    }
-
     // возвращает запрошенный документ
     Response RequestHandler::MainFileBodyResponse(StringRequest&& req, const resource_handler::ResourcePtr& resource) {
         FileResponse response(http::status::ok, req.version());
@@ -173,6 +128,53 @@ namespace http_handler {
         return response;
     }
 
+    // обработчик запросов для к api-игрового сервера
+    Response RequestHandler::ApiRequestHandle(StringRequest&& req, std::string_view api_request_line) {
+
+        if (api_request_line.size() == 0) {
+            // если предается голое "api", то вызываем ответ по ошибке
+            return game_.bad_request_response(std::move(req), "badRequest"sv, "Bad request"sv);
+            //return ApiBadRequestResponse(std::move(req));
+        }
+
+        if (api_request_line == "/v1/maps"sv) {
+            // выводим список доступных карт
+            return game_.map_list_response(std::move(req));
+            //return ApiMapsListResponse(std::move(req));
+        }
+
+        if (api_request_line == "/v1/game/join"sv) {
+            // обрабатываем запрос по присоединению к игре
+            return game_.join_game_response(std::move(req));
+        }
+
+        if (api_request_line == "/v1/game/players"sv) {
+            // обрабатываем запрос по выдаче информации о подключенных игроках к сессии
+            return game_.player_list_response(std::move(req));
+        }
+
+        if (api_request_line == "/v1/game/state"sv) {
+            // обрабатываем запрос по получению инфы о игровом состоянии персонажей
+            return game_.game_state_response(std::move(req));
+        }
+
+        if (api_request_line == "/v1/game/player/action"sv) {
+            // обрабатываем запрос по совершению действий персонажем
+            return game_.player_action_response(std::move(req));
+        }
+
+        // важный момент парсинга - блок сработает только если строка больше 9 символов и первые слова "/v1/maps/"
+        // по идее сюда можно добавлять разные элементы, если их будет много то имеет смысл сделать специализированный парсер
+        if (api_request_line.size() >= 9 && std::string{ api_request_line.begin(),  api_request_line.begin() + 9 } == "/v1/maps/"sv) {
+            // отправляемся на поиски запрошенной карты
+            return game_.find_map_response(std::move(req),
+                { api_request_line.begin() + 9, api_request_line.end() });
+        }
+
+        // на крайний случай просто скажем, что запрос плохой
+        return game_.bad_request_response(std::move(req), "badRequest"sv, "Bad request"sv);
+    }
+
     // базовый парсер запросов
     Response RequestHandler::RequestParser(StringRequest&& req) {
 
@@ -186,7 +188,7 @@ namespace http_handler {
             || req.target().substr(0, 5) == "/api/"sv) {
 
             // передаем управление специализированному методу
-            return ApiGetMethodHandle(std::move(req), { req.target().begin() + 4, req.target().end() });
+            return ApiRequestHandle(std::move(req), { req.target().begin() + 4, req.target().end() });
         }
 
         // для начала сделаем репарсинг полученной строки запроса, отсекаем первый слеш за ненадобностью
@@ -216,101 +218,9 @@ namespace http_handler {
         }
     }
 
-
-    
-    // возвращает список доступных карт
-    Response RequestHandler::ApiFindMapResponse(StringRequest&& req, std::string_view find_request_line) {
-
-        // ищем запрошенную карту
-        auto map = game_simple_.FindMap(model::Map::Id{ std::string(find_request_line) });
-
-        if (map == nullptr) {
-            // если карта не найдена, то кидаем отбойник
-            return ApiNotFoundResponse(std::move(req));
-        }
-        else {
-
-            StringResponse response(http::status::ok, req.version());
-            response.set(http::field::content_type, ContentType::APP_JSON);
-
-            // загружаем тело ответа из жидомасонского блока по полученному выше блоку параметров карты
-            response.body() = json_detail::GetMapInfo(map);
-
-            return response;
-        }
-    }
-
-    // возвращает список доступных карт
-    Response RequestHandler::ApiMapsListResponse(StringRequest&& req) {
-        StringResponse response(http::status::ok, req.version());
-        response.set(http::field::content_type, ContentType::APP_JSON);
-        response.body() = json_detail::GetMapList(game_simple_.GetMaps());
-
-        return response;
-    }
-
-    // возврат "mapNotFound"
-    Response RequestHandler::ApiNotFoundResponse(StringRequest&& req) {
-        StringResponse response(http::status::not_found, req.version());
-        response.set(http::field::content_type, ContentType::APP_JSON);
-        response.body() = json_detail::GetErrorString("mapNotFound"sv, "Map not found"sv);
-
-        return response;
-    }
-
-    // возврат "badRequest"
-    Response RequestHandler::ApiBadRequestResponse(StringRequest&& req) {
-        StringResponse response(http::status::bad_request, req.version());
-        response.set(http::field::content_type, ContentType::APP_JSON);
-        response.body() = json_detail::GetErrorString("badRequest"sv, "Bad request"sv);
-
-        return response;
-    }
-
-    // Обработчик GET-запросов для Api игрового сервера
-    Response RequestHandler::ApiGetMethodHandle(StringRequest&& req, std::string_view api_request_line) {
-
-        if (api_request_line.size() == 0) {
-            // если предается голое "api", то вызываем ответ по ошибке
-            return game_.bad_request_response(std::move(req), "badRequest"sv, "Bad request"sv);
-            //return ApiBadRequestResponse(std::move(req));
-        }
-
-        if (api_request_line == "/v1/maps"sv) {
-            // выводим список доступных карт
-            return game_.map_list_response(std::move(req));
-            //return ApiMapsListResponse(std::move(req));
-        }
-
-        if (api_request_line == "/v1/game/join"sv) {
-            // обрабатываем запрос по присооединению к игре
-            return game_.join_game_response(std::move(req));
-        }
-
-        if (api_request_line == "/v1/game/players"sv) {
-            // обрабатываем запрос по выдаче информации о подключенных игроках к сессии
-            return game_.player_list_response(std::move(req));
-        }
-
-        if (api_request_line == "/v1/game/state"sv) {
-            // обрабатываем запрос по получению инфы о игровом состоянии персонажей
-            return game_.game_state_response(std::move(req));
-        }
-
-        // важный момент парсинга - блок сработает только если строка больше 9 символов и первые слова "/v1/maps/"
-        // по идее сюда можно добавлять разные элементы, если их будет много то имеет смысл сделать специализированный парсер
-        if (api_request_line.size() >= 9 && std::string{ api_request_line.begin(),  api_request_line.begin() + 9 } == "/v1/maps/"sv) {
-            // отправляемся на поиски запрошенной карты
-            return game_.find_map_response(std::move(req),
-                { api_request_line.begin() + 9, api_request_line.end() });
-
-            /*return ApiFindMapResponse(std::move(req),
-                { api_request_line.begin() + 9, api_request_line.end() });*/
-        }
-
-        // на крайний случай просто скажем, что запрос плохой
-        return game_.bad_request_response(std::move(req), "badRequest"sv, "Bad request"sv);
-        //return ApiBadRequestResponse(std::move(req));
+    Response RequestHandler::HandleRequest(StringRequest&& req) {
+        // обработка get, head, post будет в другом месте после парсинга
+        return RequestParser(std::move(req));
     }
 
 }  // namespace http_handler

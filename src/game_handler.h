@@ -43,6 +43,9 @@ namespace game_handler {
 
 		Player* get_player_by_token(const Token* token);
 
+		// метод добавляет скорость персонажу, вызывается из GameHandler::player_action_response_impl
+		bool move_player(const Token* token, PlayerMove move);
+
 		const auto cbegin() const {
 			return session_players_.cbegin();
 		}
@@ -99,6 +102,8 @@ namespace game_handler {
 			: game_simple_(json_loader::LoadGame(configuration)) {
 		}
 
+		// Возвращает ответ на запрос о совершении действий персонажем
+		http_handler::Response player_action_response(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
 		http_handler::Response game_state_response(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос о списке игроков в данной сессии
@@ -134,9 +139,11 @@ namespace game_handler {
 		bool reset_token_impl(std::string_view token);
 
 		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
-		http_handler::Response game_state_response_impl(http_handler::StringRequest&& req, Token&& token);
+		http_handler::Response player_action_response_impl(http_handler::StringRequest&& req, const Token* token);
+		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
+		http_handler::Response game_state_response_impl(http_handler::StringRequest&& req, const Token* token);
 		// Возвращает ответ на запрос о списке игроков в данной сессии
-		http_handler::Response player_list_response_impl(http_handler::StringRequest&& req, Token&& token);
+		http_handler::Response player_list_response_impl(http_handler::StringRequest&& req, const Token* token);
 		// Возвращает ответ, о успешном добавлении игрока в игровую сессию
 		http_handler::Response join_game_response_impl(http_handler::StringRequest&& req, json::value&& body, const model::Map* map);
 		// Возвращает ответ, что упомянутая карта не найдена
@@ -206,8 +213,10 @@ namespace game_handler {
 				"unknownToken"sv, "Player token has not been found"sv);
 		}
 
+		//auto t = &tokens_list_.find(token)->first
+
 		// вызываем полченный обработчик
-		return func(std::move(req), std::move(token));
+		return func(std::move(req), &tokens_list_.find(token)->first);
 	}
 
 	template <typename ...Methods>

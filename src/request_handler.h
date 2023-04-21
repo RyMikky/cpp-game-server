@@ -15,22 +15,12 @@ namespace http_handler {
 
     class RequestHandler {
     public:
-        RequestHandler(game::GameHandler& game, res::ResourceHandler& resource, model::Game& game_simple)
-            : game_{ game }, resource_{ resource }, game_simple_{ game_simple } {
+        RequestHandler(game::GameHandler& game, res::ResourceHandler& resource)
+            : game_{ game }, resource_{ resource } {
         }
 
         RequestHandler(const RequestHandler&) = delete;
         RequestHandler& operator=(const RequestHandler&) = delete;
-
-        // Создаёт StringResponse с заданными параметрами
-        StringResponse MakeStringResponse(http::status status, std::string_view body, unsigned http_version,
-            bool keep_alive, std::string_view content_type = ContentType::TEXT_HTML);
-
-        // Обработчик GET-запросов в общем смысле
-        Response GetMethodHandle(StringRequest&& req);
-
-        // Базовый обработчик полученного реквеста
-        Response HandleRequest(StringRequest&& req);
 
         template <typename Body, typename Allocator, typename Send>
         void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
@@ -42,9 +32,7 @@ namespace http_handler {
     private:
         game::GameHandler& game_;
         res::ResourceHandler& resource_;
-        model::Game& game_simple_;
         
-
         // ------------------------------ блок работы с обычными get и head запросами -------------------
 
         // возвращает запрошенный документ
@@ -56,25 +44,20 @@ namespace http_handler {
         // базовый ответ 400 - bad request
         Response MainBadRequestResponse(StringRequest&& req);
         
+        // ------------------------------ блок работы с api-запросами -----------------------------------
+       
+        // обработчик запросов для к api-игрового сервера
+        Response ApiRequestHandle(StringRequest&& req, std::string_view api_request_line);
 
-        // ------------------------------ блок работы с api-get-запросами -------------------------------
-
-        // возвращает список доступных карт
-        Response ApiFindMapResponse(StringRequest&& req, std::string_view find_request_line);
-        // возвращает список доступных карт
-        Response ApiMapsListResponse(StringRequest&& req);
-        // возврат "mapNotFound"
-        Response ApiNotFoundResponse(StringRequest&& req);
-        // возврат "badRequest"
-        Response ApiBadRequestResponse(StringRequest&& req);
-        // Обработчик GET-запросов для Api игрового сервера
-        Response ApiGetMethodHandle(StringRequest&& req, std::string_view api_request_line);
+        // ------------------------------ блок парсинга и базовой обработки -----------------------------
 
         template <typename Iterator>
         std::string RequestTargetParser(Iterator begin, Iterator end);
-
         // базовый парсер запросов
         Response RequestParser(StringRequest&& req);
+
+        // Базовый обработчик полученного запроса
+        Response HandleRequest(StringRequest&& req);
     };
 
     template <typename Iterator>

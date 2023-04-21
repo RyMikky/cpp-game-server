@@ -52,14 +52,10 @@ int main(int argc, const char* argv[]) {
         // 0.1. Инициализируем буст-логгер, для базовой инициализации можно подать любой консольный поток
         logger_handler::detail::BoostLogBaseSetup(std::cout);
 
-        // 1. Загружаем карту из файла и построить модель игры
-        // времянка подгружающая игровоую модель по старому
-        model::Game game_simple = json_loader::LoadGame(argv[1]);
-
+        // 1. Загружаем карту из файла и строим модель игры
         game_handler::GameHandler game{ argv[1] };
         // 2. Загружаем данные в обработчик ресурсов
         resource_handler::ResourceHandler resource{ argv[2] };
-        //resource_handler::ResourceHandler resource = resource_handler::detail::LoadFiles( argv[2]);
 
         // 3. Инициализируем io_context
         const unsigned num_threads = std::thread::hardware_concurrency();
@@ -74,8 +70,8 @@ int main(int argc, const char* argv[]) {
             }
             });
 
-        // 5. Создаём обработчик HTTP-запросов и связываем его с моделью игры
-        http_handler::RequestHandler request_handler{ game, resource, game_simple };
+        // 5. Создаём обработчик HTTP-запросов и связываем его с моделью игры и статическими данными
+        http_handler::RequestHandler request_handler{ game, resource };
 
         // 6. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
         const auto address = net::ip::make_address("0.0.0.0");

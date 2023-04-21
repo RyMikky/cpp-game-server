@@ -14,8 +14,18 @@ namespace game_handler {
         return *this;
     }
 
+    Player& Player::set_position(double x, double y) {
+        position_.x_ = x; position_.y_ = y;
+        return *this;
+    }
+
     Player& Player::set_speed(PlayerSpeed&& speed) {
         speed_ = std::move(speed);
+        return *this;
+    }
+
+    Player& Player::set_speed(double xV, double yV) {
+        speed_.xV_ = xV; speed_.yV_ = yV;
         return *this;
     }
 
@@ -23,5 +33,38 @@ namespace game_handler {
         direction_ = std::move(direction);
         return *this;
     }
+
+    namespace detail {
+
+        bool check_player_move(std::string_view move) {
+            return move == "U"sv || move == "D"sv || move == "L"sv || move == "R"sv || move == ""sv;
+        }
+
+        PlayerMove parse_player_move(std::string_view move) {
+
+            if (move == "U"sv) {
+                return PlayerMove::UP;
+            }
+
+            if (move == "D"sv) {
+                return PlayerMove::DOWN;
+            }
+
+            if (move == "L"sv) {
+                return PlayerMove::LEFT;
+            }
+
+            if (move == "R"sv) {
+                return PlayerMove::RIGHT;
+            }
+
+            if (move == ""sv) {
+                return PlayerMove::STAY;
+            }
+
+            return PlayerMove::error;
+        }
+
+    } // namespace detail
 
 } // game_handler

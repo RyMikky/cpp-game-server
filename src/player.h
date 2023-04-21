@@ -31,6 +31,10 @@ namespace game_handler {
         NORTH, SOUTH, WEST, EAST
     };
 
+    enum class PlayerMove {
+        UP, DOWN, LEFT, RIGHT, STAY, error
+    };
+
     class Player {
     public:
         Player() = default;
@@ -56,10 +60,12 @@ namespace game_handler {
 
 
         Player& set_position(PlayerPosition&& position);
+        Player& set_position(double x, double y);
         PlayerPosition get_position() const {
             return position_;
         }
         Player& set_speed(PlayerSpeed&& speed);
+        Player& set_speed(double xV, double yV);
         PlayerSpeed get_speed() const {
             return speed_;
         }
@@ -82,5 +88,13 @@ namespace game_handler {
     };
 
     using PlayerPtr = const Player*;
+
+    namespace detail {
+
+        bool check_player_move(std::string_view move);
+
+        PlayerMove parse_player_move(std::string_view move);
+
+    } // namespace detail
 
 } // namespace game_handler 

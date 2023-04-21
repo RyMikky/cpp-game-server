@@ -1836,6 +1836,506 @@ namespace test {
         }
     }
 
+    void SimpleTest::TestApiPlayerMove(AuthResp data) {
+
+        try
+        {
+            // устанавливаем соединение с сервером, используя результаты разрешения
+            stream_.connect(endpoint_);
+
+            // создаем объект запроса
+            http::request<http::string_body> req{ http::verb::post, "/api/v1/game/player/action"sv, 11 };
+            req.set(http::field::host, endpoint_->endpoint().address().to_string());
+            req.set(http::field::content_type, "application/json"sv);
+            req.set(http::field::authorization, "Bearer " + data.first);
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+
+            req.body() = "{\"move\": \"R\"}";
+            req.prepare_payload();
+
+            // отправляем запрос на сервер
+            http::write(stream_, req);
+
+            // создаем объект ответа
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> res;
+
+            // получаем ответ от сервера
+            http::read(stream_, buffer, res);
+
+            {
+                // проверяем совпадение типа контента
+                auto const& content = res.find(http::field::content_type);
+                if (content != res.end()) {
+                    assert(content->value() == http_handler::ContentType::APP_JSON);
+                }
+                else {
+                    assert(false);
+                }
+
+                // првоеряем совпадение кода ответа сервера
+                assert(res.result_int() == 200);
+
+                // сравниваем полученные значения
+                assert(boost::beast::buffers_to_string(res.body().data()) == "{}");
+            }
+
+            // закрываем соединение с сервером
+            beast::error_code ec;
+            stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            // если произошла ошибка, выводим ее сообщение
+            if (ec && ec != beast::errc::not_connected) {
+                throw beast::system_error{ ec };
+            }
+        }
+        catch (std::exception const& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+    }
+
+    void SimpleTest::TestApiPlayerInvalidMethod(AuthResp data)
+    {
+        try
+        {
+            // устанавливаем соединение с сервером, используя результаты разрешения
+            stream_.connect(endpoint_);
+
+            // создаем объект запроса
+            http::request<http::string_body> req{ http::verb::get, "/api/v1/game/player/action"sv, 11 };
+            req.set(http::field::host, endpoint_->endpoint().address().to_string());
+            req.set(http::field::content_type, "application/json"sv);
+            req.set(http::field::authorization, "Bearer " + data.first);
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+
+            req.body() = "{\"move\": \"R\"}";
+            req.prepare_payload();
+
+            // отправляем запрос на сервер
+            http::write(stream_, req);
+
+            // создаем объект ответа
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> res;
+
+            // получаем ответ от сервера
+            http::read(stream_, buffer, res);
+
+            {
+                // проверяем совпадение типа контента
+                auto const& content = res.find(http::field::content_type);
+                if (content != res.end()) {
+                    assert(content->value() == http_handler::ContentType::APP_JSON);
+                }
+                else {
+                    assert(false);
+                }
+
+                // проверяем cache-control
+                auto const& cache = res.find(http::field::cache_control);
+                if (cache != res.end()) {
+                    assert(cache->value() == "no-cache"sv);
+                }
+                else {
+                    assert(false);
+                }
+
+                // проверяем allow
+                auto const& allow = res.find(http::field::allow);
+                if (allow != res.end()) {
+                    assert(allow->value() == "POST"sv);
+                }
+                else {
+                    assert(false);
+                }
+
+                // првоеряем совпадение кода ответа сервера
+                assert(res.result_int() == 405);
+
+                // проверяем совпадение строки ответа с заготовкой в файле
+                // открываем файл с заготовкой ответа
+                std::fstream file("../test/test_api_game_login_invalid_method.txt", std::ios::in);
+
+                // чтобы не заморачиваться с переносами строк и прочим битово читаем файл в поток
+                std::stringstream buffer;
+                buffer << file.rdbuf(); file.close();
+
+                // загоняем ответ сервера из строки в JSON
+                auto server_resp = json_detail::ParseTextToBoostJson(
+                    boost::beast::buffers_to_string(res.body().data()));
+                // загоняем буфер из файла в JSON
+                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                // сравниваем полученные значения
+                assert(server_resp == file_resp);
+            }
+
+            // закрываем соединение с сервером
+            beast::error_code ec;
+            stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            // если произошла ошибка, выводим ее сообщение
+            if (ec && ec != beast::errc::not_connected) {
+                throw beast::system_error{ ec };
+            }
+        }
+        catch (std::exception const& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+    }
+
+    void SimpleTest::TestApiPlayerInvalidToken(AuthResp data) {
+        try
+        {
+            // устанавливаем соединение с сервером, используя результаты разрешения
+            stream_.connect(endpoint_);
+
+            // создаем объект запроса
+            http::request<http::string_body> req{ http::verb::post, "/api/v1/game/player/action"sv, 11 };
+            req.set(http::field::host, endpoint_->endpoint().address().to_string());
+            req.set(http::field::content_type, "application/json"sv);
+            req.set(http::field::authorization, "Cearer " + data.first);
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+
+            req.body() = "{\"move\": \"R\"}";
+            req.prepare_payload();
+
+            // отправляем запрос на сервер
+            http::write(stream_, req);
+
+            // создаем объект ответа
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> res;
+
+            // получаем ответ от сервера
+            http::read(stream_, buffer, res);
+
+            {
+                // проверяем совпадение типа контента
+                auto const& content = res.find(http::field::content_type);
+                if (content != res.end()) {
+                    assert(content->value() == http_handler::ContentType::APP_JSON);
+                }
+                else {
+                    assert(false);
+                }
+
+                // првоеряем совпадение кода ответа сервера
+                assert(res.result_int() == 401);
+
+                // проверяем совпадение строки ответа с заготовкой в файле
+                // открываем файл с заготовкой ответа
+                std::fstream file("../test/test_api_authorization_missing.txt", std::ios::in);
+
+                // чтобы не заморачиваться с переносами строк и прочим битово читаем файл в поток
+                std::stringstream buffer;
+                buffer << file.rdbuf(); file.close();
+
+                // загоняем ответ сервера из строки в JSON
+                auto server_resp = json_detail::ParseTextToBoostJson(
+                    boost::beast::buffers_to_string(res.body().data()));
+                // загоняем буфер из файла в JSON
+                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+
+                // сравниваем полученные значения
+                assert(server_resp == file_resp);
+            }
+
+
+            // закрываем соединение с сервером
+            beast::error_code ec;
+            stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            // если произошла ошибка, выводим ее сообщение
+            if (ec && ec != beast::errc::not_connected) {
+                throw beast::system_error{ ec };
+            }
+        }
+        catch (std::exception const& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+    }
+
+    void SimpleTest::TestApiPlayerTokenNotFound(AuthResp data) {
+        try
+        {
+            // устанавливаем соединение с сервером, используя результаты разрешения
+            stream_.connect(endpoint_);
+
+            // создаем объект запроса
+            http::request<http::string_body> req{ http::verb::post, "/api/v1/game/player/action"sv, 11 };
+            req.set(http::field::host, endpoint_->endpoint().address().to_string());
+            req.set(http::field::content_type, "application/json"sv);
+            req.set(http::field::authorization, "Bearer ahfyrgfbdkfjthfbsyednfjwpqotnd34");
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+
+            req.body() = "{\"move\": \"R\"}";
+            req.prepare_payload();
+
+            // отправляем запрос на сервер
+            http::write(stream_, req);
+
+            // создаем объект ответа
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> res;
+
+            // получаем ответ от сервера
+            http::read(stream_, buffer, res);
+
+            {
+                // проверяем совпадение типа контента
+                auto const& content = res.find(http::field::content_type);
+                if (content != res.end()) {
+                    assert(content->value() == http_handler::ContentType::APP_JSON);
+                }
+                else {
+                    assert(false);
+                }
+
+                // првоеряем совпадение кода ответа сервера
+                assert(res.result_int() == 401);
+
+                // проверяем совпадение строки ответа с заготовкой в файле
+                // открываем файл с заготовкой ответа
+                std::fstream file("../test/test_api_token_not_found.txt", std::ios::in);
+
+                // чтобы не заморачиваться с переносами строк и прочим битово читаем файл в поток
+                std::stringstream buffer;
+                buffer << file.rdbuf(); file.close();
+
+                // загоняем ответ сервера из строки в JSON
+                auto server_resp = json_detail::ParseTextToBoostJson(
+                    boost::beast::buffers_to_string(res.body().data()));
+                // загоняем буфер из файла в JSON
+                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+
+                // сравниваем полученные значения
+                assert(server_resp == file_resp);
+            }
+
+            // закрываем соединение с сервером
+            beast::error_code ec;
+            stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            // если произошла ошибка, выводим ее сообщение
+            if (ec && ec != beast::errc::not_connected) {
+                throw beast::system_error{ ec };
+            }
+        }
+        catch (std::exception const& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+    }
+
+    void SimpleTest::TestApiPlayerInvalidContent(AuthResp data) {
+        try
+        {
+            // устанавливаем соединение с сервером, используя результаты разрешения
+            stream_.connect(endpoint_);
+
+            // создаем объект запроса
+            http::request<http::string_body> req{ http::verb::post, "/api/v1/game/player/action"sv, 11 };
+            req.set(http::field::host, endpoint_->endpoint().address().to_string());
+            req.set(http::field::content_type, "text/css"sv);
+            req.set(http::field::authorization, "Bearer " + data.first);
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+
+            req.body() = "{\"move\": \"R\"}";
+            req.prepare_payload();
+
+            // отправляем запрос на сервер
+            http::write(stream_, req);
+
+            // создаем объект ответа
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> res;
+
+            // получаем ответ от сервера
+            http::read(stream_, buffer, res);
+
+            {
+                // проверяем совпадение типа контента
+                auto const& content = res.find(http::field::content_type);
+                if (content != res.end()) {
+                    assert(content->value() == http_handler::ContentType::APP_JSON);
+                }
+                else {
+                    assert(false);
+                }
+
+                // првоеряем совпадение кода ответа сервера
+                assert(res.result_int() == 400);
+
+                // проверяем совпадение строки ответа с заготовкой в файле
+                // открываем файл с заготовкой ответа
+                std::fstream file("../test/test_api_player_move_invalid_content_type.txt", std::ios::in);
+
+                // чтобы не заморачиваться с переносами строк и прочим битово читаем файл в поток
+                std::stringstream buffer;
+                buffer << file.rdbuf(); file.close();
+
+                // загоняем ответ сервера из строки в JSON
+                auto server_resp = json_detail::ParseTextToBoostJson(
+                    boost::beast::buffers_to_string(res.body().data()));
+                // загоняем буфер из файла в JSON
+                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+
+                // сравниваем полученные значения
+                assert(server_resp == file_resp);
+            }
+
+            // закрываем соединение с сервером
+            beast::error_code ec;
+            stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            // если произошла ошибка, выводим ее сообщение
+            if (ec && ec != beast::errc::not_connected) {
+                throw beast::system_error{ ec };
+            }
+        }
+        catch (std::exception const& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+    }
+
+    void SimpleTest::TestApiPlayerMissBody(AuthResp data) {
+        try
+        {
+            // устанавливаем соединение с сервером, используя результаты разрешения
+            stream_.connect(endpoint_);
+
+            // создаем объект запроса
+            http::request<http::string_body> req{ http::verb::post, "/api/v1/game/player/action"sv, 11 };
+            req.set(http::field::host, endpoint_->endpoint().address().to_string());
+            req.set(http::field::content_type, "application/json"sv);
+            req.set(http::field::authorization, "Bearer " + data.first);
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+
+            // отправляем запрос на сервер
+            http::write(stream_, req);
+
+            // создаем объект ответа
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> res;
+
+            // получаем ответ от сервера
+            http::read(stream_, buffer, res);
+
+            {
+                // проверяем совпадение типа контента
+                auto const& content = res.find(http::field::content_type);
+                if (content != res.end()) {
+                    assert(content->value() == http_handler::ContentType::APP_JSON);
+                }
+                else {
+                    assert(false);
+                }
+
+                // првоеряем совпадение кода ответа сервера
+                assert(res.result_int() == 400);
+
+                // проверяем совпадение строки ответа с заготовкой в файле
+                // открываем файл с заготовкой ответа
+                std::fstream file("../test/test_api_player_move_miss_body.txt", std::ios::in);
+
+                // чтобы не заморачиваться с переносами строк и прочим битово читаем файл в поток
+                std::stringstream buffer;
+                buffer << file.rdbuf(); file.close();
+
+                // загоняем ответ сервера из строки в JSON
+                auto server_resp = json_detail::ParseTextToBoostJson(
+                    boost::beast::buffers_to_string(res.body().data()));
+                // загоняем буфер из файла в JSON
+                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+
+                // сравниваем полученные значения
+                assert(server_resp == file_resp);
+            }
+
+            // закрываем соединение с сервером
+            beast::error_code ec;
+            stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            // если произошла ошибка, выводим ее сообщение
+            if (ec && ec != beast::errc::not_connected) {
+                throw beast::system_error{ ec };
+            }
+        }
+        catch (std::exception const& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+    }
+
+    void SimpleTest::TestApiPlayerInvalidBody(AuthResp data) {
+        try
+        {
+            // устанавливаем соединение с сервером, используя результаты разрешения
+            stream_.connect(endpoint_);
+
+            // создаем объект запроса
+            http::request<http::string_body> req{ http::verb::post, "/api/v1/game/player/action"sv, 11 };
+            req.set(http::field::host, endpoint_->endpoint().address().to_string());
+            req.set(http::field::content_type, "application/json"sv);
+            req.set(http::field::authorization, "Bearer " + data.first);
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+
+            req.body() = "{\"move\": \"F\"}";
+            req.prepare_payload();
+
+            // отправляем запрос на сервер
+            http::write(stream_, req);
+
+            // создаем объект ответа
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> res;
+
+            // получаем ответ от сервера
+            http::read(stream_, buffer, res);
+
+            {
+                // проверяем совпадение типа контента
+                auto const& content = res.find(http::field::content_type);
+                if (content != res.end()) {
+                    assert(content->value() == http_handler::ContentType::APP_JSON);
+                }
+                else {
+                    assert(false);
+                }
+
+                // првоеряем совпадение кода ответа сервера
+                assert(res.result_int() == 400);
+
+                // проверяем совпадение строки ответа с заготовкой в файле
+                // открываем файл с заготовкой ответа
+                std::fstream file("../test/test_api_player_move_invalid_body.txt", std::ios::in);
+
+                // чтобы не заморачиваться с переносами строк и прочим битово читаем файл в поток
+                std::stringstream buffer;
+                buffer << file.rdbuf(); file.close();
+
+                // загоняем ответ сервера из строки в JSON
+                auto server_resp = json_detail::ParseTextToBoostJson(
+                    boost::beast::buffers_to_string(res.body().data()));
+                // загоняем буфер из файла в JSON
+                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+
+                // сравниваем полученные значения
+                assert(server_resp == file_resp);
+            }
+
+            // закрываем соединение с сервером
+            beast::error_code ec;
+            stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            // если произошла ошибка, выводим ее сообщение
+            if (ec && ec != beast::errc::not_connected) {
+                throw beast::system_error{ ec };
+            }
+        }
+        catch (std::exception const& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+        }
+    }
+
     void SimpleTest::TestAuthorizationSet() {
 
         SimpleTest::AuthResp data = SimpleTest::TestApiGameThirdLogin();
@@ -1867,6 +2367,27 @@ namespace test {
 
         SimpleTest::TestApiGameStateTokenNotFound(data);
         std::cerr << "TestApiGameStateTokenNotFound()::Complete::Status................Ok\n" << std::endl;
+
+        SimpleTest::TestApiPlayerMove(data);
+        std::cerr << "TestApiPlayerMove()::Complete::Status............................Ok\n" << std::endl;
+
+        SimpleTest::TestApiPlayerInvalidMethod(data);
+        std::cerr << "TestApiPlayerInvalidMethod()::Complete::Status...................Ok\n" << std::endl;
+
+        SimpleTest::TestApiPlayerInvalidToken(data);
+        std::cerr << "TestApiPlayerInvalidToken()::Complete::Status....................Ok\n" << std::endl;
+
+        SimpleTest::TestApiPlayerTokenNotFound(data);
+        std::cerr << "TestApiPlayerTokenNotFound()::Complete::Status...................Ok\n" << std::endl;
+
+        SimpleTest::TestApiPlayerInvalidContent(data);
+        std::cerr << "TestApiPlayerInvalidContent()::Complete::Status..................Ok\n" << std::endl;
+
+        SimpleTest::TestApiPlayerMissBody(data);
+        std::cerr << "TestApiPlayerMissBody()::Complete::Status........................Ok\n" << std::endl;
+
+        SimpleTest::TestApiPlayerInvalidBody(data);
+        std::cerr << "TestApiPlayerInvalidBody()::Complete::Status.....................Ok\n" << std::endl;
     }
 
 } // namespace test

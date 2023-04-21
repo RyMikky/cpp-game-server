@@ -128,13 +128,17 @@ namespace model {
         Map(Id id, std::string name) noexcept
             : id_(std::move(id))
             , name_(std::move(name))
-            , dog_speed_(0u) {
+            , dog_speed_(1u) {
+            // Скорость персонажей на всех картах задаёт опциональное поле defaultDogSpeed в корневом JSON-объекте. 
+            // Если это поле отсутствует, скорость по умолчанию считается равной 1.
         }
 
         Map(Id id, std::string name, double dog_speed) noexcept
             : id_(std::move(id))
             , name_(std::move(name))
             , dog_speed_(dog_speed) {
+            // Скорость персонажей на конкретной карте задаёт опциональное поле dogSpeed в соответствующем объекте карты. 
+            // Если это поле отсутствует, на карте используется скорость по умолчанию.
         }
 
         const Id& GetId() const noexcept {

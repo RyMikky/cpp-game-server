@@ -76,6 +76,39 @@ namespace game_handler {
 		return nullptr;
 	}
 
+	// метод добавляет скорость персонажу, вызывается из GameHandler::player_action_response_impl
+	bool GameSession::move_player(const Token* token, PlayerMove move) {
+
+		switch (move)
+		{
+		case game_handler::PlayerMove::UP: // верх скорость {0, -speed}
+			get_player_by_token(token)->set_speed(0, -session_game_map_->GetDogSpeed());
+			return true;
+
+		case game_handler::PlayerMove::DOWN: // вниз скорость {0, speed}
+			get_player_by_token(token)->set_speed(0, session_game_map_->GetDogSpeed());
+			return true;
+
+		case game_handler::PlayerMove::LEFT: // влево скорость {-speed, 0}
+			get_player_by_token(token)->set_speed(-session_game_map_->GetDogSpeed(), 0);
+			return true;
+
+		case game_handler::PlayerMove::RIGHT: // влево скорость {speed, 0}
+			get_player_by_token(token)->set_speed(session_game_map_->GetDogSpeed(), 0);
+			return true;
+
+		case game_handler::PlayerMove::STAY:
+			get_player_by_token(token)->set_speed(0, 0);
+			return true;
+
+		case game_handler::PlayerMove::error:
+			throw std::runtime_error("GameSession::move_player::PlayerMove::error");
+
+		default:
+			return false;
+		}
+	}
+
 	// чекает стартовую позицию на предмет совпадения с другими игроками в сессии
 	bool GameSession::start_position_check_impl(PlayerPosition& position) {
 
@@ -95,6 +128,40 @@ namespace game_handler {
 		return _hasher(map->GetName()) + _hasher(*(map->GetId()));
 	}
 
+	// Возвращает ответ на запрос о совершении действий персонажем
+	http_handler::Response GameHandler::player_action_response(http_handler::StringRequest&& req) {
+		if (req.method_string() != http_handler::Method::POST) {
+			// если у нас не POST-запрос, то кидаем отбойник
+			return method_not_allowed_impl(std::move(req), http_handler::Method::POST);
+		}
+
+		// ищем тушку авторизации среди хеддеров запроса
+		auto content_type = req.find("Content-Type");
+		if (content_type == req.end() || content_type->value() != "application/json") {
+			// если нет тушки по авторизации, тогда кидаем отбойник
+			return bad_request_response(std::move(req),
+				"invalidArgument"sv, "Invalid content type"sv);
+		}
+
+		if (req.body().size() == 0) {
+			// если нет тела запроса, тогда запрашиваем
+			return bad_request_response(std::move(req),
+				"invalidArgument"sv, "Request body whit argument <move> expected"sv);
+		}
+
+		try
+		{
+			// в случае успешной авторизации, лямбда вызовет нужный обработчик
+			return authorization_token_impl(std::move(req),
+				[this](http_handler::StringRequest&& req, const Token* token) {
+					return this->player_action_response_impl(std::move(req), token);
+				});
+		}
+		catch (const std::exception& e)
+		{
+			throw std::runtime_error("GameHandler::player_action_response::error" + std::string(e.what()));
+		}
+	}
 	// Возвращает ответ на запрос о состоянии игроков в игровой сессии
 	http_handler::Response GameHandler::game_state_response(http_handler::StringRequest&& req) {
 
@@ -106,8 +173,8 @@ namespace game_handler {
 		try
 		{
 			return authorization_token_impl(std::move(req),
-				[this](http_handler::StringRequest&& req, Token&& token) {
-					return this->game_state_response_impl(std::move(req), std::move(token));
+				[this](http_handler::StringRequest&& req, const Token* token) {
+					return this->game_state_response_impl(std::move(req), token);
 				});
 
 			// старый вариант использования имплементации токена
@@ -145,8 +212,8 @@ namespace game_handler {
 		try
 		{
 			return authorization_token_impl(std::move(req), 
-				[this](http_handler::StringRequest&& req, Token&& token) {
-					return this->player_list_response_impl(std::move(req), std::move(token));
+				[this](http_handler::StringRequest&& req, const Token* token) {
+					return this->player_list_response_impl(std::move(req), token);
 				});
 
 			// старый вариант использования имплементации токена
@@ -322,10 +389,42 @@ namespace game_handler {
 	}
 
 	// Возвращает ответ на запрос о состоянии игроков в игровой сессии
-	http_handler::Response GameHandler::game_state_response_impl(http_handler::StringRequest&& req, Token&& token) {
+	http_handler::Response GameHandler::player_action_response_impl(http_handler::StringRequest&& req, const Token* token) {
+
+		try
+		{
+			// пробуем записать строку запроса в json-блок
+			json::object body = json_detail::ParseTextToBoostJson(req.body()).as_object();
+
+			if (!body.count("move") || !detail::check_player_move(body.at("move").as_string())) {
+				// если в теле запроса отсутствует поле "Move", или его значение не валидно
+				return bad_request_response(std::move(req),
+					"invalidArgument"sv, "Failed to parse action"sv);
+			}
+
+			// получаем сессию где на данный момент "висит" указанный токен
+			std::shared_ptr<GameSession> session = tokens_list_.at(*token);
+			// запрашиваем сессию изменить скорость персонажа
+			session->move_player(token, detail::parse_player_move(body.at("move").as_string()));
+
+			// подготавливаем и возвращаем ответ о успехе операции
+			http_handler::StringResponse response(http::status::ok, req.version());
+			response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
+			response.set(http::field::cache_control, "no-cache");
+			response.body() = "{}";
+
+			return response;
+		}
+		catch (const std::exception&)
+		{
+			return bad_request_response(std::move(req), "invalidArgument"sv, "Failed to parse action"sv);
+		}
+	}
+	// Возвращает ответ на запрос о состоянии игроков в игровой сессии
+	http_handler::Response GameHandler::game_state_response_impl(http_handler::StringRequest&& req, const Token* token) {
 		
 		// получаем сессию где на данный момент "висит" указанный токен
-		std::shared_ptr<GameSession> session = tokens_list_.at(token);
+		std::shared_ptr<GameSession> session = tokens_list_.at(*token);
 
 		// подготавливаем и возвращаем ответ
 		http_handler::StringResponse response(http::status::ok, req.version());
@@ -337,10 +436,10 @@ namespace game_handler {
 		return response;
 	}
 	// Возвращает ответ на запрос о списке игроков в данной сессии
-	http_handler::Response GameHandler::player_list_response_impl(http_handler::StringRequest&& req, Token&& token) {
+	http_handler::Response GameHandler::player_list_response_impl(http_handler::StringRequest&& req, const Token* token) {
 
 		// получаем сессию где на данный момент "висит" указанный токен
-		std::shared_ptr<GameSession> session = tokens_list_.at(token);
+		std::shared_ptr<GameSession> session = tokens_list_.at(*token);
 
 		// подготавливаем и возвращаем ответ
 		http_handler::StringResponse response(http::status::ok, req.version());
