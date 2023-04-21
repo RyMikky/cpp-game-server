@@ -34,13 +34,15 @@ namespace game_handler {
 
 		// отвечает есть ли в сессии свободное местечко
 		bool have_free_space();
-
+		// добавляет нового игрока на случайное место на случайной дороге на карте
 		Player* add_new_player(std::string_view name);
 
+		// удалить игрока из игровой сессии
 		bool remove_player(const Token* token);
 		bool remove_player(std::string_view name);
 		bool remove_player(uint16_t id);
 
+		// вернуть указатель на игрока в сессии по токену
 		Player* get_player_by_token(const Token* token);
 
 		// метод добавляет скорость персонажу, вызывается из GameHandler::player_action_response_impl
@@ -86,8 +88,6 @@ namespace game_handler {
 	using GameMapInstance = std::unordered_map<const model::Map*, GameInstance, MapPtrHasher>;
 	// структура для быстрого поиска игрока по токену, реализуется реверсивным добавлением из сессии в обработчик
 	using GameTokenList = std::unordered_map<Token, std::shared_ptr<GameSession>, TokenHasher>;
-	// вариант для проверки авторизации в одном методе
-	using Authorization = std::variant<std::monostate, Token, http_handler::Response>;
 
 	class GameHandler {
 		friend class GameSession;
@@ -99,7 +99,7 @@ namespace game_handler {
 	public:
 		// отдаём создание игровой модели классу обработчику игры
 		explicit GameHandler(const fs::path& configuration)
-			: game_simple_(json_loader::LoadGame(configuration)) {
+			: game_simple_(json_loader::load_game(configuration)) {
 		}
 
 		// Возвращает ответ на запрос о совершении действий персонажем
@@ -150,9 +150,6 @@ namespace game_handler {
 		http_handler::Response map_not_found_response_impl(http_handler::StringRequest&& req);
 		// Возвращает ответ, что запрошенный метод не разрешен, доступные указывается в аргументе allow
 		http_handler::Response method_not_allowed_impl(http_handler::StringRequest&& req, std::string_view allow);
-
-		// метод проверяющий совпадение токена с предоставленным, если токен корректнен и есть в базе, то возвращается токен
-		Authorization authorization_token_impl_old(http_handler::StringRequest& req);
 
 		// метод проверяющий совпадение токена с предоставленным, если токен корректнен и есть в базе, то возвращается токен
 		template <typename Function>
@@ -227,7 +224,7 @@ namespace game_handler {
 		response.set(http::field::cache_control, "no-cache");
 		// собираюю строку сборщиком из detail
 		response.set(http::field::allow, detail::combine_methods(methods...));
-		response.body() = json_detail::GetErrorString("invalidMethod"sv, "Invalid method"s);
+		response.body() = json_detail::get_error_string("invalidMethod"sv, "Invalid method"s);
 
 		return response;
 	}

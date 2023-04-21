@@ -5,7 +5,7 @@ namespace json_loader {
     namespace detail {
 
         // парсер элементов карты - здания
-        void ParseMapBuildingsData(model::Map& map, json::value&& builds) {
+        void parse_map_buildings_data(model::Map& map, json::value&& builds) {
         
             for (auto element : builds.as_array()) {
 
@@ -31,9 +31,8 @@ namespace json_loader {
                 );
             }
         };
-
         // парсер элементов карты - офисы
-        void ParseMapOfficesData(model::Map& map, json::value&& offices) {
+        void parse_map_offices_data(model::Map& map, json::value&& offices) {
 
             for (auto element : offices.as_array()) {
 
@@ -61,9 +60,8 @@ namespace json_loader {
                 map.AddOffice(office);
             }
         };
-
         // парсер элементов карты - дороги
-        void ParseMapRoadsData(model::Map& map, json::value&& roads) {
+        void parse_map_roads_data(model::Map& map, json::value&& roads) {
 
             for (auto element : roads.as_array()) {
 
@@ -101,9 +99,8 @@ namespace json_loader {
                 }
             }
         }
-
         // базовый парсер элементов полученного config.json
-        model::Game ParseGameMapsData(json::value&& maps) {
+        model::Game parse_game_maps_data(json::value&& maps) {
 
             model::Game result;  // создаём пустое возвращаемое значение
 
@@ -120,18 +117,17 @@ namespace json_loader {
 
                 // парсим данные по дорогам, домам и офисам
                 // если данных нет, то будет выкинуто исключение, что собственно прекратит работу
-                ParseMapRoadsData(map, element.at("roads").as_array());
-                ParseMapOfficesData(map, element.at("offices").as_array());
-                ParseMapBuildingsData(map, element.at("buildings").as_array());
+                parse_map_roads_data(map, element.at("roads").as_array());
+                parse_map_offices_data(map, element.at("offices").as_array());
+                parse_map_buildings_data(map, element.at("buildings").as_array());
 
                 result.AddMap(map);              // не забываем добавить созданную карту в игру
             }
 
             return result;                       // возвращаем результат работы конфигураторов
         }
-
         // базовый парсер элементов полученного config.json, вместе с базовой скоростью
-        model::Game ParseGameMapsData(json::value&& maps, double default_god_speed) {
+        model::Game parse_game_maps_data(json::value&& maps, double default_god_speed) {
 
             model::Game result;  // создаём пустое возвращаемое значение
 
@@ -158,9 +154,9 @@ namespace json_loader {
 
                 // парсим данные по дорогам, домам и офисам
                 // если данных нет, то будет выкинуто исключение, что собственно прекратит работу
-                ParseMapRoadsData(map, element.at("roads").as_array());
-                ParseMapOfficesData(map, element.at("offices").as_array());
-                ParseMapBuildingsData(map, element.at("buildings").as_array());
+                parse_map_roads_data(map, element.at("roads").as_array());
+                parse_map_offices_data(map, element.at("offices").as_array());
+                parse_map_buildings_data(map, element.at("buildings").as_array());
 
                 result.AddMap(map);              // не забываем добавить созданную карту в игру
             }
@@ -168,11 +164,9 @@ namespace json_loader {
             return result;                       // возвращаем результат работы конфигураторов
         }
 
-
-
     } // namespace detail
 
-    model::Game LoadGame(const std::filesystem::path& json_path) {
+    model::Game load_game(const std::filesystem::path& json_path) {
         // Загрузить содержимое файла json_path, например, в виде строки
         // Распарсить строку как JSON, используя boost::json::parse
         // Загрузить модель игры из файла
@@ -191,7 +185,7 @@ namespace json_loader {
         try
         {
             // делаем репарсинг данных в boost::json формат пытаясь сразу преобразоваться в словарь
-            auto boost_json_data = json_detail::ParseTextToBoostJson(text).as_object();
+            auto boost_json_data = json_detail::parse_text_to_json(text).as_object();
 
             // в полученном жидомасоне должен быть массив с картами продолжаем настройку сервера
             json::value maps = boost_json_data.at("maps");
@@ -199,11 +193,11 @@ namespace json_loader {
             if (boost_json_data.count("defaultDogSpeed")) {
                 // если в словаре есть упоминание о дефолтной скорости
                 // то берем запись, сразу конвертируем в double и вызываем соответствующую перегрузку
-                return detail::ParseGameMapsData(std::move(maps),
+                return detail::parse_game_maps_data(std::move(maps),
                     boost_json_data.at("defaultDogSpeed").as_double());
             }
             else {
-                return detail::ParseGameMapsData(std::move(maps));
+                return detail::parse_game_maps_data(std::move(maps));
             }
         }
         catch (const std::exception& e)

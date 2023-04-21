@@ -57,6 +57,9 @@ int main(int argc, const char* argv[]) {
         // 2. Загружаем данные в обработчик ресурсов
         resource_handler::ResourceHandler resource{ argv[2] };
 
+        // обработчики ресурсов и игры пока что подержим на стеке, так как стек работает быстрее 
+        // в случае необходимости уведем их на шару в кучу
+
         // 3. Инициализируем io_context
         const unsigned num_threads = std::thread::hardware_concurrency();
         net::io_context ioc(num_threads);
@@ -70,15 +73,16 @@ int main(int argc, const char* argv[]) {
             }
             });
 
-        // 5. Создаём обработчик HTTP-запросов и связываем его с моделью игры и статическими данными
-        http_handler::RequestHandler request_handler{ game, resource };
+        // 5. Создаём обработчик HTTP-запросов в шаре и связываем его с моделью игры, статическими данными и контекстом
+        auto request_handler = std::make_shared<http_handler::RequestHandler>(game, resource, ioc );
 
         // 6. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
         const auto address = net::ip::make_address("0.0.0.0");
         constexpr net::ip::port_type port = 8080;
-        http_server::ServeHttp(ioc, {address, port}, [&request_handler](auto&& req, auto&& send) {
-            request_handler(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
-        });
+
+        http_server::ServeHttp(ioc, { address, port }, [request_handler](auto&& req, auto&& send) {
+            (*request_handler)(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
+            });
 
         // 7. Запускаем обработку асинхронных операций
         RunWorkers(std::max(1u, num_threads), [&ioc] {

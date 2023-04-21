@@ -4,7 +4,7 @@
 namespace http_handler {
 
     // возвращает запрошенный документ
-    Response RequestHandler::MainFileBodyResponse(StringRequest&& req, const resource_handler::ResourcePtr& resource) {
+    Response RequestHandler::static_file_body_response(StringRequest&& req, const resource_handler::ResourcePtr& resource) {
         FileResponse response(http::status::ok, req.version());
 
         // в огромном свиче выбираем тип контента
@@ -92,13 +92,12 @@ namespace http_handler {
 
         return response;
     }
-
     // возвращает index.html основной страницы
-    Response RequestHandler::MainRootIndexResponse(StringRequest&& req) {
+    Response RequestHandler::static_root_index_response(StringRequest&& req) {
         FileResponse response(http::status::ok, req.version());
         response.set(http::field::content_type, ContentType::TEXT_HTML);
 
-        std::string path_line = std::string(resource_.GetRootDirectoryPath()) + "index.html";
+        std::string path_line = std::string(resource_.get_root_directory_path()) + "index.html";
 
         http::file_body::value_type file;
         if (sys::error_code ec; file.open(path_line.data(), beast::file_mode::read, ec), ec) {
@@ -111,25 +110,58 @@ namespace http_handler {
 
         return response;
     }
-
-    Response RequestHandler::MainNotFoundResponse(StringRequest&& req) {
+    // базовый ответ 404 - not found
+    Response RequestHandler::static_not_found_response(StringRequest&& req) {
         StringResponse response(http::status::not_found, req.version());
         response.set(http::field::content_type, ContentType::TEXT_TXT);
-        response.body() = json_detail::GetErrorString("NotFound"sv, "file not found"sv);
+        response.body() = json_detail::get_error_string("NotFound"sv, "file not found"sv);
 
         return response;
     }
-
-    Response RequestHandler::MainBadRequestResponse(StringRequest&& req) {
+    // базовый ответ 400 - bad request
+    Response RequestHandler::static_bad_request_response(StringRequest&& req) {
         StringResponse response(http::status::bad_request, req.version());
         response.set(http::field::content_type, ContentType::TEXT_TXT);
-        response.body() = json_detail::GetErrorString("BadRequest"sv, "access denied"sv);
+        response.body() = json_detail::get_error_string("BadRequest"sv, "access denied"sv);
 
         return response;
     }
 
+    // обработчик для запросов к статическим данным
+    Response RequestHandler::handle_static_request(StringRequest&& req) {
+        // если у нас просто переход по адресу, или с указанием странички index.html
+        if (req.target() == "/"sv || req.target() == "/index.html"sv) {
+            return static_root_index_response(std::move(req));
+        }
+
+        // для начала сделаем репарсинг полученной строки запроса, отсекаем первый слеш за ненадобностью
+        std::string reparse_line = parse_target(req.target().begin() + 1, req.target().end());
+
+        // ищем выход за пределы рута, в левом запросе будет так или иначе в начале присутствовать замаскированный обратный слеш
+        if (reparse_line.find("..%5C") != std::string::npos
+            || reparse_line.find("/../") != std::string::npos) {
+            return static_bad_request_response(std::move(req));
+        }
+
+        // если на краю слеш - то будем искать файл index.html в крайнем каталоге
+        if (reparse_line.size() != 0 && *(reparse_line.end() - 1) == '/') {
+            reparse_line += "index.html";
+        }
+
+        // берем путь до основной директории
+        std::string root_path = std::string(resource_.get_root_directory_path());
+
+        // если запрос валидный, то проверяем наличие файла по пути
+        if (resource_handler::ResourcePtr resource = resource_.get_resource_item(fs::path(root_path + reparse_line)); !resource) {
+            // если упоминания о файле во внутренних каталогах нет отвечаем, что отдать нечего
+            return static_not_found_response(std::move(req));
+        }
+        else {
+            return static_file_body_response(std::move(req), resource);
+        }
+    }
     // обработчик запросов для к api-игрового сервера
-    Response RequestHandler::ApiRequestHandle(StringRequest&& req, std::string_view api_request_line) {
+    Response RequestHandler::handle_api_request(StringRequest&& req, std::string_view api_request_line) {
 
         if (api_request_line.size() == 0) {
             // если предается голое "api", то вызываем ответ по ошибке
@@ -175,52 +207,5 @@ namespace http_handler {
         return game_.bad_request_response(std::move(req), "badRequest"sv, "Bad request"sv);
     }
 
-    // базовый парсер запросов
-    Response RequestHandler::RequestParser(StringRequest&& req) {
-
-        // если у нас просто переход по адресу, или с указанием странички index.html
-        if (req.target() == "/"sv || req.target() == "/index.html"sv) {
-            return MainRootIndexResponse(std::move(req));
-        }
-
-        // либо строка содержит только "api", либо имеет продолжение вида "api/"
-        if (req.target().substr(0, 4) == "/api"sv && req.target().size() == 4
-            || req.target().substr(0, 5) == "/api/"sv) {
-
-            // передаем управление специализированному методу
-            return ApiRequestHandle(std::move(req), { req.target().begin() + 4, req.target().end() });
-        }
-
-        // для начала сделаем репарсинг полученной строки запроса, отсекаем первый слеш за ненадобностью
-        std::string reparse_line = RequestTargetParser(req.target().begin() + 1, req.target().end());
-
-        // ищем выход за пределы рута, в левом запросе будет так или иначе в начале присутствовать замаскированный обратный слеш
-        if (reparse_line.find("..%5C") != std::string::npos
-            || reparse_line.find("/../") != std::string::npos) {
-            return MainBadRequestResponse(std::move(req));
-        }
-
-        // если на краю слеш - то будем искать файл index.html в крайнем каталоге
-        if (*(reparse_line.end() - 1) == '/') {
-            reparse_line += "index.html";
-        }
-
-        // берем путь до основной директории
-        std::string root_path = std::string(resource_.GetRootDirectoryPath());
-
-        // если запрос валидный, то проверяем наличие файла по пути
-        if (resource_handler::ResourcePtr resource = resource_.GetResourseByPath(fs::path(root_path + reparse_line)); !resource) {
-            // если упоминания о файле во внутренних каталогах нет отвечаем, что отдать нечего
-            return MainNotFoundResponse(std::move(req));
-        }
-        else {
-            return MainFileBodyResponse(std::move(req), resource);
-        }
-    }
-
-    Response RequestHandler::HandleRequest(StringRequest&& req) {
-        // обработка get, head, post будет в другом месте после парсинга
-        return RequestParser(std::move(req));
-    }
 
 }  // namespace http_handler

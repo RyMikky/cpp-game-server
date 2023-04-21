@@ -112,10 +112,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
                 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -179,10 +179,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -245,10 +245,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -311,10 +311,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -377,10 +377,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -448,7 +448,7 @@ namespace test {
                 assert(res.result_int() == 200);
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
 
                 // првоеряем в ответе наличие строк о токене и айди
@@ -519,7 +519,7 @@ namespace test {
                 assert(res.result_int() == 200);
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
 
                 // првоеряем в ответе наличие строк о токене и айди
@@ -592,7 +592,7 @@ namespace test {
                 assert(res.result_int() == 200);
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
 
                 // првоеряем в ответе наличие строк о токене и айди
@@ -671,11 +671,11 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
 
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -751,10 +751,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -830,10 +830,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -909,10 +909,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -988,10 +988,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -1076,10 +1076,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -1150,7 +1150,7 @@ namespace test {
                 assert(res.result_int() == 200);
 
                 // загоняем ответ сервера из строки в JSON
-                server_resp = json_detail::ParseTextToBoostJson(
+                server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
 
                 // првоеряем в ответе наличие строк о токене и айди
@@ -1222,10 +1222,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -1290,10 +1290,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -1359,10 +1359,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -1428,10 +1428,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -1497,10 +1497,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -1584,10 +1584,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
             }
@@ -1644,7 +1644,7 @@ namespace test {
                 assert(res.result_int() == 200);
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // в ответе должна быть запись "players"
                 assert(server_resp.is_object() && server_resp.as_object().count("players"));
@@ -1744,10 +1744,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -1813,10 +1813,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -1961,10 +1961,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
             }
@@ -2031,10 +2031,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -2103,10 +2103,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -2174,10 +2174,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -2242,10 +2242,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);
@@ -2313,10 +2313,10 @@ namespace test {
                 buffer << file.rdbuf(); file.close();
 
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::ParseTextToBoostJson(
+                auto server_resp = json_detail::parse_text_to_json(
                     boost::beast::buffers_to_string(res.body().data()));
                 // загоняем буфер из файла в JSON
-                auto file_resp = json_detail::ParseTextToBoostJson(buffer.str());
+                auto file_resp = json_detail::parse_text_to_json(buffer.str());
 
                 // сравниваем полученные значения
                 assert(server_resp == file_resp);

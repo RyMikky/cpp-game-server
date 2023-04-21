@@ -16,7 +16,7 @@ namespace game_handler {
 
 		return id != players_id_.end();
 	}
-
+	// добавляет нового игрока на случайное место на случайной дороге на карте
 	Player* GameSession::add_new_player(std::string_view name) {
 		// смотрим есть ли место в текущей игровой сессии
 		auto id = std::find(players_id_.begin(), players_id_.end(), false);
@@ -55,7 +55,7 @@ namespace game_handler {
 			return nullptr;
 		}
 	}
-
+	// удалить игрока из игровой сессии
 	bool GameSession::remove_player(const Token* token) {
 		if (!session_players_.count(token)) {
 			return false;
@@ -68,14 +68,13 @@ namespace game_handler {
 			return true;
 		}
 	}
-
+	// вернуть указатель на игрока в сессии по токену
 	Player* GameSession::get_player_by_token(const Token* token) {
 		if (session_players_.count(token)) {
 			return &session_players_.at(token);
 		}
 		return nullptr;
 	}
-
 	// метод добавляет скорость персонажу, вызывается из GameHandler::player_action_response_impl
 	bool GameSession::move_player(const Token* token, PlayerMove move) {
 
@@ -108,7 +107,6 @@ namespace game_handler {
 			return false;
 		}
 	}
-
 	// чекает стартовую позицию на предмет совпадения с другими игроками в сессии
 	bool GameSession::start_position_check_impl(PlayerPosition& position) {
 
@@ -258,7 +256,7 @@ namespace game_handler {
 			}
 
 			// парсим тело запроса, все исключения в процессе будем ловить в catch_блоке
-			json::value req_data = json_detail::ParseTextToBoostJson(req.body());
+			json::value req_data = json_detail::parse_text_to_json(req.body());
 			
 			{
 				// если в блоке вообще нет графы "userName" или "mapId"
@@ -312,7 +310,7 @@ namespace game_handler {
 			response.set(http::field::cache_control, "no-cache");
 
 			// загружаем тело ответа из жидомасонского блока по полученному выше блоку параметров карты
-			response.body() = json_detail::GetMapInfo(map);
+			response.body() = json_detail::get_map_info(map);
 
 			return response;
 		}
@@ -323,7 +321,7 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::ok, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		response.body() = json_detail::GetMapList(game_simple_.GetMaps());
+		response.body() = json_detail::get_map_list(game_simple_.GetMaps());
 
 		return response;
 	}
@@ -333,7 +331,7 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::bad_request, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		response.body() = json_detail::GetErrorString(code, message);
+		response.body() = json_detail::get_error_string(code, message);
 
 		return response;
 	}
@@ -343,7 +341,7 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::unauthorized, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		response.body() = json_detail::GetErrorString(code, message);
+		response.body() = json_detail::get_error_string(code, message);
 
 		return response;
 	}
@@ -394,7 +392,7 @@ namespace game_handler {
 		try
 		{
 			// пробуем записать строку запроса в json-блок
-			json::object body = json_detail::ParseTextToBoostJson(req.body()).as_object();
+			json::object body = json_detail::parse_text_to_json(req.body()).as_object();
 
 			if (!body.count("move") || !detail::check_player_move(body.at("move").as_string())) {
 				// если в теле запроса отсутствует поле "Move", или его значение не валидно
@@ -431,7 +429,7 @@ namespace game_handler {
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
 		// заполняем тушку ответа с помощью жисонского метода
-		response.body() = json_detail::GetSessionStateList(session->get_session_players());
+		response.body() = json_detail::get_session_state_list(session->get_session_players());
 
 		return response;
 	}
@@ -446,7 +444,7 @@ namespace game_handler {
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
 		// заполняем тушку ответа с помощью жисонского метода
-		response.body() = json_detail::GetSessionPlayersList(session->get_session_players());
+		response.body() = json_detail::get_session_players_list(session->get_session_players());
 
 		return response;
 	}
@@ -500,7 +498,7 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::ok, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		response.body() = json_detail::GetJoinPlayerString(new_player);
+		response.body() = json_detail::get_session_join_player(new_player);
 
 		return response;
 	}
@@ -509,7 +507,7 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::not_found, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		response.body() = json_detail::GetErrorString("mapNotFound"sv, "Map not found"sv);
+		response.body() = json_detail::get_error_string("mapNotFound"sv, "Map not found"sv);
 
 		return response;
 	}
@@ -519,40 +517,9 @@ namespace game_handler {
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
 		response.set(http::field::allow, allow);
-		response.body() = json_detail::GetErrorString("invalidMethod"sv, ("Only "s + std::string(allow) + " method is expected"s));
+		response.body() = json_detail::get_error_string("invalidMethod"sv, ("Only "s + std::string(allow) + " method is expected"s));
 
 		return response;
-	}
-
-	// метод проверяющий совпадение токена с предоставленным, если токен корректнен и есть в базе, то возвращается токен
-	Authorization GameHandler::authorization_token_impl_old(http_handler::StringRequest& req) {
-
-		// ищем тушку авторизации среди хеддеров запроса
-		auto auth_iter = req.find("Authorization");
-		if (auth_iter == req.end()) {
-			// если нет тушки по авторизации, тогда кидаем отбойник
-			return unauthorized_response(std::move(req),
-				"invalidToken"sv, "Authorization header is missing"sv);
-		}
-
-		// из тушки запроса получаем строку
-		// так как строка должна иметь строгий вид Bearer <токен>, то мы легко можем распарсить её
-		auto auth_reparse = detail::BearerParser({ auth_iter->value().begin(), auth_iter->value().end() });
-
-		if (!auth_reparse) {
-			// если нет строки Bearer, или она корявая, или токен пустой, то кидаем отбойник
-			return unauthorized_response(std::move(req),
-				"invalidToken"sv, "Authorization header is missing"sv);
-		}
-
-		Token req_token{ auth_reparse.value() }; // создаём быстро токен на основе запроса и ищем совпадение во внутреннем массиве
-		if (!tokens_list_.count(req_token)) {
-			// если заголовок Authorization содержит валидное значение токена, но в игре нет пользователя с таким токеном
-			return unauthorized_response(std::move(req),
-				"unknownToken"sv, "Player token has not been found"sv);
-		}
-
-		return req_token;
 	}
 	
 	namespace detail {
