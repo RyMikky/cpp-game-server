@@ -34,6 +34,11 @@ namespace game_handler {
         return *this;
     }
 
+    Player& Player::set_speed_direction(PlayerDirection&& direction) {
+        speed_dir_ = std::move(direction);
+        return *this;
+    }
+
     Player& Player::set_direction(PlayerDirection&& direction) {
         direction_ = std::move(direction);
         return *this;

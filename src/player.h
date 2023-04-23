@@ -72,6 +72,12 @@ namespace game_handler {
         PlayerSpeed get_speed() const {
             return speed_;
         }
+
+        Player& set_speed_direction(PlayerDirection&& direction);
+        PlayerDirection get_speed_direction() const {
+            return speed_dir_;
+        }
+
         Player& set_direction(PlayerDirection&& direction);
         PlayerDirection get_direction() const {
             return direction_;
@@ -86,6 +92,7 @@ namespace game_handler {
 
         PlayerPosition position_ = { 0, 0 };
         PlayerSpeed speed_ = { 0, 0 };
+        PlayerDirection speed_dir_ = PlayerDirection::NORTH;
         PlayerDirection direction_ = PlayerDirection::NORTH;
 
     };

@@ -43,7 +43,15 @@ namespace model {
             throw;
         }
     }
+    // возвращает стартовую точку первой дороги на карте
+    Point Map::get_first_map_start_position() const {
+        if (roads_.size() == 0) {
+            // если дорог нет, тогда кидаем исключение, что у нас пусто в листе
+            throw std::runtime_error("Map::get_first_map_start_position::Error::No_Roads_on_Map");
+        }
 
+        return roads_[0].GetStart();
+    }
     // возвращает ссылку на дорогу по переданной позиции и направлению, или вертикальному или горизонтальному
     const Road& Map::get_road_by_position(Point pos, bool vertical) const {
 

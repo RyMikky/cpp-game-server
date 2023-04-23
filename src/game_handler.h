@@ -158,7 +158,7 @@ namespace game_handler {
 		GameMapInstance instances_;
 		GameTokenList tokens_list_;
 
-		bool start_random_position_ = true;             // флаг радндомной позиции игроков на старте
+		bool start_random_position_ = false;             // флаг радндомной позиции игроков на старте
 
 		const Token* get_unique_token_impl(std::shared_ptr<GameSession> session);
 		bool reset_token_impl(std::string_view token);

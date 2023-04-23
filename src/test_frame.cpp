@@ -1885,7 +1885,7 @@ namespace test {
             // отправляем сгенерированный запрос на сервер
             http::write(stream_, make_test_request(endpoint_, "/api/v1/game/tick"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
-                ""sv, "{\"taymeDelta\": \"sotka\"}"sv));
+                ""sv, "{\"timeDelta\": \"0.0\"}"sv));
 
             // создаем объект ответа
             beast::flat_buffer buffer; http::response<http::dynamic_body> res;

@@ -22,16 +22,20 @@ namespace game_handler {
 		if (id != players_id_.end()) {
 			// если место есть, то запрашиваем уникальный токен
 			const Token* player_token = game_handler_.get_unique_token(shared_from_this());
+			// запрашиваем стартовую точку первой дороги
+			model::Point point = session_game_map_->get_first_map_start_position();
 
-			PlayerPosition position{0.0, 0.0};                 // заготовка под позицию установки нового игрока
-			// если активирован флаг получения случайной позиции на старте иначе будет старт на точке {0.0, 0.0}
+			// заготовка под позицию установки нового игрока
+			PlayerPosition position{ static_cast<double>(point.x), static_cast<double>(point.y) };
+
+			// если активирован флаг получения случайной позиции на старте иначе будет старт на стартовой точке первой дороги
 			if (start_random_position_) {
 				// чтобы получить случайную позицию на какой-нибудь дороге на карте начнём цикл поиска места
 				bool findPlase = true;        // реверсивный флаг, который сделаем false, когда найдём место
 				while (findPlase)
 				{
 					// спрашиваем у карты случайную точку на какой-нибудь дороге
-					model::Point point = session_game_map_->get_random_road_position();
+					point = session_game_map_->get_random_road_position();
 					// переводим точку в позицию
 					position.x_ = point.x;
 					position.y_ = point.y;
@@ -102,18 +106,22 @@ namespace game_handler {
 		{
 		case game_handler::PlayerMove::UP: // верх скорость {0, -speed}
 			get_player_by_token(token)->set_speed(0, -session_game_map_->get_dog_speed()).set_direction(PlayerDirection::NORTH);
+			//get_player_by_token(token)->set_speed(0, -session_game_map_->get_dog_speed()).set_speed_direction(PlayerDirection::NORTH);
 			return true;
 
 		case game_handler::PlayerMove::DOWN: // вниз скорость {0, speed}
 			get_player_by_token(token)->set_speed(0, session_game_map_->get_dog_speed()).set_direction(PlayerDirection::SOUTH);
+			//get_player_by_token(token)->set_speed(0, session_game_map_->get_dog_speed()).set_speed_direction(PlayerDirection::SOUTH);
 			return true;
 
 		case game_handler::PlayerMove::LEFT: // влево скорость {-speed, 0}
 			get_player_by_token(token)->set_speed(-session_game_map_->get_dog_speed(), 0).set_direction(PlayerDirection::WEST);
+			//get_player_by_token(token)->set_speed(-session_game_map_->get_dog_speed(), 0).set_speed_direction(PlayerDirection::WEST);
 			return true;
 
 		case game_handler::PlayerMove::RIGHT: // влево скорость {speed, 0}
 			get_player_by_token(token)->set_speed(session_game_map_->get_dog_speed(), 0).set_direction(PlayerDirection::EAST);
+			//get_player_by_token(token)->set_speed(session_game_map_->get_dog_speed(), 0).set_speed_direction(PlayerDirection::EAST);
 			return true;
 
 		case game_handler::PlayerMove::STAY:
@@ -174,9 +182,9 @@ namespace game_handler {
 			// необходимо убедиться, что мы не смещаемся левее допустимого лимита
 			// берем наименьшую координату горизонтальной дороги по оси X и вычитаем дельту
 			limit_dx_ = static_cast<double>(std::min(road->GetStart().x, road->GetEnd().x)) - __ROAD_DELTA__;
-			if (to.y_ <= limit_dx_) {
+			if (to.x_ <= limit_dx_) {
 				// если приращение меньше максимально допустимого (максимальный отступ от оси дороги влево)
-				to.y_ = limit_dx_;                      // то просто меняем, приращение по горизонтальной оси
+				to.x_ = limit_dx_;                      // то просто меняем, приращение по горизонтальной оси
 				playerKeepMoving = false;               // снимаем флаг продолжения движения
 			}
 
@@ -186,9 +194,9 @@ namespace game_handler {
 			// необходимо убедиться, что мы не смещаемся правее допустимого лимита
 			// берем наибольшую координату горизонтальной дороги по оси X и прибавляем дельту
 			limit_dx_ = static_cast<double>(std::max(road->GetStart().x, road->GetEnd().x)) + __ROAD_DELTA__;
-			if (to.y_ >= limit_dx_) {
+			if (to.x_ >= limit_dx_) {
 				// если приращение больше максимально допустимого (максимальный отступ от оси дороги влево)
-				to.y_ = limit_dx_;                      // то просто меняем, приращение по горизонтальной оси
+				to.x_ = limit_dx_;                      // то просто меняем, приращение по горизонтальной оси
 				playerKeepMoving = false;               // снимаем флаг продолжения движения
 			}
 
@@ -272,7 +280,8 @@ namespace game_handler {
 	bool GameSession::set_player_new_position(Player& player, double time) {
 
 		// записываем вектор ожидаемого приращения по положению персонажа
-		PlayerPosition delta_pos{ player.get_speed().xV_ * time, player.get_speed().yV_ * time, };
+		PlayerPosition delta_pos{ player.get_position().x_ + (player.get_speed().xV_ * time), 
+			player.get_position().y_ + (player.get_speed().yV_ * time) };
 		// чтобы лишнего не считать, проверяем есть ли у нас какое-то приращение в принципе
 		if (delta_pos.x_ == 0 && delta_pos.y_ == 0) {
 			return true;           // если приращения нет, то сразу выходим и не продолжаем
@@ -281,6 +290,7 @@ namespace game_handler {
 		const model::Road* road = nullptr;    // готовим заготовку под "дорогу"
 		// записываем во временную переменную, чтобы не делать лишних вызовов
 		PlayerDirection direction = player.get_direction();
+		//PlayerDirection direction = player.get_speed_direction();
 		PlayerPosition position = player.get_position();
 		// округляем позицию до уровня логики model::Map
 		model::Point point{ detail::double_round(position.x_), detail::double_round(position.y_) };
@@ -573,8 +583,10 @@ namespace game_handler {
 			response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 			response.set(http::field::cache_control, "no-cache");
 
-			// загружаем тело ответа из жидомасонского блока по полученному выше блоку параметров карты
-			response.body() = json_detail::get_map_info(map);
+			// заполняем тушку ответа с помощью жисонского метода
+			std::string body_str = json_detail::get_map_info(map);
+			response.set(http::field::content_length, std::to_string(body_str.size()));
+			response.body() = body_str;
 
 			return response;
 		}
@@ -585,7 +597,11 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::ok, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		response.body() = json_detail::get_map_list(game_simple_.get_maps());
+
+		// заполняем тушку ответа с помощью жисонского метода
+		std::string body_str = json_detail::get_map_list(game_simple_.get_maps());
+		response.set(http::field::content_length, std::to_string(body_str.size()));
+		response.body() = body_str;
 
 		return response;
 	}
@@ -595,7 +611,11 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::bad_request, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		response.body() = json_detail::get_error_string(code, message);
+
+		// заполняем тушку ответа с помощью жисонского метода
+		std::string body_str = json_detail::get_error_string(code, message);
+		response.set(http::field::content_length, std::to_string(body_str.size()));
+		response.body() = body_str;
 
 		return response;
 	}
@@ -605,7 +625,11 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::unauthorized, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		response.body() = json_detail::get_error_string(code, message);
+
+		// заполняем тушку ответа с помощью жисонского метода
+		std::string body_str = json_detail::get_error_string(code, message);
+		response.set(http::field::content_length, std::to_string(body_str.size()));
+		response.body() = body_str;
 
 		return response;
 	}
@@ -665,10 +689,15 @@ namespace game_handler {
 			int time = 0;
 
 			if (body.at("timeDelta").is_number()) {
-				time = static_cast<int>(body.at("timeDelta").is_number());
+				time = static_cast<int>(body.at("timeDelta").as_int64());
 			}
 			else if (body.at("timeDelta").is_string()) {
 				time = std::stoi(std::string(body.at("timeDelta").as_string()));
+			}
+
+			if (time == 0) {
+				// если задают ноль, то также выдаём badRequest
+				return bad_request_response(std::move(req), "invalidArgument"sv, "Failed to parse tick request JSON"sv);
 			}
 
 			// запускаем обновление всех игровых сессий во всех игровых инстансах за O(N*K), 
@@ -685,6 +714,7 @@ namespace game_handler {
 			http_handler::StringResponse response(http::status::ok, req.version());
 			response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 			response.set(http::field::cache_control, "no-cache");
+			response.set(http::field::content_length, "2");
 			response.body() = "{}";
 
 			return response;
@@ -717,6 +747,7 @@ namespace game_handler {
 			http_handler::StringResponse response(http::status::ok, req.version());
 			response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 			response.set(http::field::cache_control, "no-cache");
+			response.set(http::field::content_length, "2");
 			response.body() = "{}";
 
 			return response;
@@ -736,8 +767,11 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::ok, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
+
 		// заполняем тушку ответа с помощью жисонского метода
-		response.body() = json_detail::get_session_state_list(session->get_session_players());
+		std::string body_str = json_detail::get_session_state_list(session->get_session_players());
+		response.set(http::field::content_length, std::to_string(body_str.size()));
+		response.body() = body_str;
 
 		return response;
 	}
@@ -752,8 +786,10 @@ namespace game_handler {
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
 		// заполняем тушку ответа с помощью жисонского метода
-		response.body() = json_detail::get_session_players_list(session->get_session_players());
-
+		std::string body_str = json_detail::get_session_players_list(session->get_session_players());
+		response.set(http::field::content_length, std::to_string(body_str.size()));
+		response.body() = body_str;
+		
 		return response;
 	}
 	// Возвращает ответ, о успешном добавлении игрока в игровую сессию
@@ -806,7 +842,10 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::ok, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		response.body() = json_detail::get_session_join_player(new_player);
+
+		std::string body_str = json_detail::get_session_join_player(new_player);
+		response.set(http::field::content_length, std::to_string(body_str.size()));
+		response.body() = body_str;
 
 		return response;
 	}
@@ -815,7 +854,10 @@ namespace game_handler {
 		http_handler::StringResponse response(http::status::not_found, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
-		response.body() = json_detail::get_error_string("mapNotFound"sv, "Map not found"sv);
+
+		std::string body_str = json_detail::get_error_string("mapNotFound"sv, "Map not found"sv);
+		response.set(http::field::content_length, std::to_string(body_str.size()));
+		response.body() = body_str;
 
 		return response;
 	}

@@ -176,6 +176,8 @@ namespace model {
         Point get_random_road_position() const {
             return get_random_road().get_random_position();
         }
+        // возвращает стартовую точку первой дороги на карте
+        Point get_first_map_start_position() const;
         // возвращает ссылку на дорогу по переданной позиции и направлению, или вертикальному или горизонтальному
         const Road& get_road_by_position(Point pos, bool vertical) const;
 
