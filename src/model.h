@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <vector>
 #include <mutex>
+#include <execution>
 
 #include "tagged.h"
 
@@ -34,7 +35,6 @@ namespace model {
         struct HorizontalTag {
             explicit HorizontalTag() = default;
         };
-
         struct VerticalTag {
             explicit VerticalTag() = default;
         };
@@ -69,7 +69,7 @@ namespace model {
             return end_;
         }
 
-        Point GetRandomPosition() const;
+        Point get_random_position() const;
 
     private:
         Point start_;
@@ -148,15 +148,12 @@ namespace model {
         const std::string& GetName() const noexcept {
             return name_;
         }
-
         const Buildings& GetBuildings() const noexcept {
             return buildings_;
         }
-
         const Roads& GetRoads() const noexcept {
             return roads_;
         }
-
         const Offices& GetOffices() const noexcept {
             return offices_;
         }
@@ -164,23 +161,30 @@ namespace model {
         void AddRoad(const Road& road) {
             roads_.emplace_back(road);
         }
-
         void AddBuilding(const Building& building) {
             buildings_.emplace_back(building);
         }
-
         void AddOffice(Office office);
 
-        void SetDogSpeed(double speed) {
+        void set_dog_speed(double speed) {
             dog_speed_ = speed;
         }
-        double GetDogSpeed() const {
+        double get_dog_speed() const {
             return dog_speed_;
         }
-        
-        Point GetRandomRoadPosition() const {
-            return GetRandomRoad().GetRandomPosition();
+        // возвращает случайную позицию на случайно выбранной дороге на карте
+        Point get_random_road_position() const {
+            return get_random_road().get_random_position();
         }
+        // возвращает ссылку на дорогу по переданной позиции и направлению, или вертикальному или горизонтальному
+        const Road& get_road_by_position(Point pos, bool vertical) const;
+
+        // флаг нахождения точки на горизонтальной дороге
+        // требуется передача позиции в формате модели с округлением к int
+        const Road* stay_on_horizontal_road(Point pos) const;
+        // флаг нахождения точки на вертикальной дороге
+        // требуется передача позиции в формате модели с округлением к int
+        const Road* stay_on_vertical_road(Point pos) const;
 
     private:
         using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;
@@ -194,20 +198,22 @@ namespace model {
         OfficeIdToIndex warehouse_id_to_index_;
         Offices offices_;
 
-        const Road& GetRandomRoad() const;
+        // возвращает случайную дорого на карте
+        const Road& get_random_road() const;
     };
 
     class Game {
     public:
         using Maps = std::vector<Map>;
 
-        void AddMap(Map map);
-
-        const Maps& GetMaps() const noexcept {
+        // добавляет карту в игровую модель
+        void add_map(Map map);
+        // возвращает лист карт игровой модели
+        const Maps& get_maps() const noexcept {
             return maps_;
         }
-
-        const Map* FindMap(const Map::Id& id) const noexcept {
+        // ищет карту в игровой модели по id 
+        const Map* find_map(const Map::Id& id) const noexcept {
             if (auto it = map_id_to_index_.find(id); it != map_id_to_index_.end()) {
                 return &maps_.at(it->second);
             }

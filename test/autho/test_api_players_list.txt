@@ -1,6 +1,5 @@
 {
   "0": {"name": "Scooby Doo"},
   "1": {"name": "Whelma Shnizel"},
-  "2": {"name": "Z+0dC$kxJ:K"},
-  "3": {"name": "Mega Pups"}
+  "2": {"name": "Mega Pups"}
 } 

@@ -121,7 +121,7 @@ namespace json_loader {
                 parse_map_offices_data(map, element.at("offices").as_array());
                 parse_map_buildings_data(map, element.at("buildings").as_array());
 
-                result.AddMap(map);              // не забываем добавить созданную карту в игру
+                result.add_map(map);              // не забываем добавить созданную карту в игру
             }
 
             return result;                       // возвращаем результат работы конфигураторов
@@ -146,10 +146,10 @@ namespace json_loader {
                 // если элемент как словарь имеет запись о скорости песелей
                 if (element.as_object().count("dogSpeed")) {
                     // назначаем сеттером скорость из словаря
-                    map.SetDogSpeed(element.at("dogSpeed").as_double());
+                    map.set_dog_speed(element.at("dogSpeed").as_double());
                 }
                 else {
-                    map.SetDogSpeed(default_god_speed);
+                    map.set_dog_speed(default_god_speed);
                 }
 
                 // парсим данные по дорогам, домам и офисам
@@ -158,7 +158,7 @@ namespace json_loader {
                 parse_map_offices_data(map, element.at("offices").as_array());
                 parse_map_buildings_data(map, element.at("buildings").as_array());
 
-                result.AddMap(map);              // не забываем добавить созданную карту в игру
+                result.add_map(map);              // не забываем добавить созданную карту в игру
             }
 
             return result;                       // возвращаем результат работы конфигураторов

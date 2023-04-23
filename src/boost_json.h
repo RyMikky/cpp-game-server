@@ -15,6 +15,8 @@ namespace json_detail {
 	// парсер входящей строки из текста в boost::json
 	json::value parse_text_to_json(std::string_view line);
 
+	// возвращает строковое представление json-словаря с информацией по конкретному аргументу
+	std::string get_debug_argument(std::string_view argument, std::string_view value);
 	// возвращает строковое представление json-словаря с информацией по коду и сообщению о ошибке
 	std::string get_error_string(std::string_view code, std::string_view message);
 	// возвращает строковое представление json-словаря с полной информацией по запрошенной карте
@@ -35,6 +37,8 @@ namespace json_detail {
 
 	namespace detail {
 
+		// возвращает json-словарь с информацией по конкретному аргументу
+		json::value get_debug_argument(std::string_view argument, std::string_view value);
 		// возвращает json-словарь с информацией по коду и сообщению о ошибке
 		json::value get_error_value(std::string_view code, std::string_view message);
 		// возвращает json-массив с информацией о офисах по запрошенной карте

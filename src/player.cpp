@@ -13,9 +13,15 @@ namespace game_handler {
         position_ = std::move(position);
         return *this;
     }
-
     Player& Player::set_position(double x, double y) {
         position_.x_ = x; position_.y_ = y;
+        return *this;
+    }
+
+    // рассчитывает новую позицию согласно времени
+    Player& Player::update_position(double time) {
+        position_.x_ += speed_.xV_ * time;
+        position_.y_ += speed_.yV_ * time;
         return *this;
     }
 
@@ -23,7 +29,6 @@ namespace game_handler {
         speed_ = std::move(speed);
         return *this;
     }
-
     Player& Player::set_speed(double xV, double yV) {
         speed_.xV_ = xV; speed_.yV_ = yV;
         return *this;
@@ -36,10 +41,11 @@ namespace game_handler {
 
     namespace detail {
 
+        // парсит корректность строки направления движения
         bool check_player_move(std::string_view move) {
             return move == "U"sv || move == "D"sv || move == "L"sv || move == "R"sv || move == ""sv;
         }
-
+        // возвращет enum с направлением движения игрока
         PlayerMove parse_player_move(std::string_view move) {
 
             if (move == "U"sv) {

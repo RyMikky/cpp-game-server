@@ -22,11 +22,11 @@ namespace game_handler {
 			return dist(__RANDOM_DEVICE__);
 		}() };
 
-		uint64_t GenerateLower();
+		uint64_t geterate_lower_token_part();
 
-		uint64_t GenerateUpper();
+		uint64_t generate_upper_token_part();
 
-		std::string GenerateToken32Hex();
+		std::string generate_token_32_hex();
 
 		struct TokenTag {};
 

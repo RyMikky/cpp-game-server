@@ -30,7 +30,7 @@ void RunWorkers(unsigned n, const Fn& fn) {
 
     {
         // таким образом как только выйдем из области видимости класс уничтожится
-        test::SimpleTest("127.0.0.1", "8080");
+        test::SimpleTest("127.0.0.1", "8080", "../test/");
     }
     
     fn();

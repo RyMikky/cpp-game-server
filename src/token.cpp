@@ -7,19 +7,19 @@ namespace game_handler {
 
 	namespace detail {
 
-		uint64_t GenerateLower() {
+		uint64_t geterate_lower_token_part() {
 			return __LOWER_GENERATOR__();
 		}
 
-		uint64_t GenerateUpper() {
+		uint64_t generate_upper_token_part() {
 			return __UPPER_GENERATOR__();
 		}
 		
-		std::string GenerateToken32Hex() {
+		std::string generate_token_32_hex() {
 
 			// генерируем младшее и старшее плечо
-			uint64_t lower_ = GenerateLower();
-			uint64_t upper_ = GenerateUpper();
+			uint64_t lower_ = geterate_lower_token_part();
+			uint64_t upper_ = generate_upper_token_part();
 
 			// побитово складываю два числа
 			uint64_t combined = (upper_ & lower_);

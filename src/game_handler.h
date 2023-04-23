@@ -17,6 +17,9 @@
 
 namespace game_handler {
 
+	// дельта отступа от центра оси дороги
+	const double __ROAD_DELTA__ = 0.4;
+
 	namespace fs = std::filesystem;
 	namespace json = boost::json;
 	namespace beast = boost::beast;
@@ -27,26 +30,36 @@ namespace game_handler {
 
 	// класс-обработчик текущей игровой сессии
 	class GameSession : public std::enable_shared_from_this<GameSession> {
+		friend class GameHandler;
 	public:
 		GameSession(GameHandler& handler, const model::Map* map, size_t max_players) 
 			: game_handler_(handler), session_game_map_(map), players_id_(max_players) {
 		}
+		GameSession(GameHandler& handler, const model::Map* map, size_t max_players, bool start_random_position)
+			: game_handler_(handler), session_game_map_(map), players_id_(max_players), start_random_position_(start_random_position) {
+		}
+	protected:
 
-		// отвечает есть ли в сессии свободное местечко
-		bool have_free_space();
+		// задаёт флаг случайной позиции для старта новых игроков
+		GameSession& set_start_random_position(bool start_random_position);
 		// добавляет нового игрока на случайное место на случайной дороге на карте
 		Player* add_new_player(std::string_view name);
-
-		// удалить игрока из игровой сессии
-		bool remove_player(const Token* token);
-		bool remove_player(std::string_view name);
-		bool remove_player(uint16_t id);
-
 		// вернуть указатель на игрока в сессии по токену
 		Player* get_player_by_token(const Token* token);
 
+		// удалить игрока из игровой сессии
+		bool remove_player(const Token* token);
+		// обновляет состояние игры с заданным временем в миллисекундах
+		bool update_state(int time);
 		// метод добавляет скорость персонажу, вызывается из GameHandler::player_action_response_impl
 		bool move_player(const Token* token, PlayerMove move);
+		// отвечает есть ли в сессии свободное местечко
+		bool have_free_space();
+		
+		// чекает стартовую позицию на предмет совпадения с другими игроками в сессии
+		const SessionPlayers& get_session_players() const {
+			return session_players_;
+		}
 
 		const auto cbegin() const {
 			return session_players_.cbegin();
@@ -61,17 +74,20 @@ namespace game_handler {
 			return session_players_.end();
 		}
 
-		// чекает стартовую позицию на предмет совпадения с другими игроками в сессии
-		const SessionPlayers& get_session_players() const {
-			return session_players_;
-		}
-
 	private:
 		GameHandler& game_handler_;
 		const model::Map* session_game_map_;
 		std::vector<bool> players_id_;
 		SessionPlayers session_players_;
 
+		bool start_random_position_ = true;
+
+		// изменяет координаты игрока при движении параллельно дороге, на которой он стоит
+		bool player_parallel_moving_impl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
+		// изменяет координаты игрока при движении перпендикулярно дороге, на которой он стоит
+		bool player_cross_moving_impl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
+
+		bool set_player_new_position(Player& player, double time);
 		bool start_position_check_impl(PlayerPosition& position);
 	};
 
@@ -102,6 +118,13 @@ namespace game_handler {
 			: game_simple_(json_loader::load_game(configuration)) {
 		}
 
+		// Возвращает ответ на запрос по установке флага случайного стартового расположения
+		http_handler::Response game_start_position_response(http_handler::StringRequest&& req);
+		// Возвращает ответ на запрос по удалению всех игровых сессий из обработчика
+		http_handler::Response game_sessions_reset_response(http_handler::StringRequest&& req);
+
+		// Возвращает ответ на запрос по изменению состояния игровой сессии со временем
+		http_handler::Response session_time_update_response(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос о совершении действий персонажем
 		http_handler::Response player_action_response(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
@@ -135,9 +158,13 @@ namespace game_handler {
 		GameMapInstance instances_;
 		GameTokenList tokens_list_;
 
+		bool start_random_position_ = true;             // флаг радндомной позиции игроков на старте
+
 		const Token* get_unique_token_impl(std::shared_ptr<GameSession> session);
 		bool reset_token_impl(std::string_view token);
 
+		// Возвращает ответ на запрос по изменению состояния игровой сессии со временем
+		http_handler::Response session_time_update_response_impl(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
 		http_handler::Response player_action_response_impl(http_handler::StringRequest&& req, const Token* token);
 		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
@@ -178,6 +205,9 @@ namespace game_handler {
 			((result += (first ? "" : ", ") + std::string(std::forward<Args>(args)), first = false), ...);
 			return result;
 		}
+
+		// округляет double -> int по математическим законам
+		int double_round(double value);
 
 		std::optional<std::string> BearerParser(std::string&& auth_line);
 

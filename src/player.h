@@ -61,6 +61,9 @@ namespace game_handler {
 
         Player& set_position(PlayerPosition&& position);
         Player& set_position(double x, double y);
+        // рассчитывает новую позицию согласно времени
+        Player& update_position(double time);
+
         PlayerPosition get_position() const {
             return position_;
         }
@@ -91,8 +94,9 @@ namespace game_handler {
 
     namespace detail {
 
+        // парсит корректность строки направления движения
         bool check_player_move(std::string_view move);
-
+        // возвращет enum с направлением движения игрока
         PlayerMove parse_player_move(std::string_view move);
 
     } // namespace detail

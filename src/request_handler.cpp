@@ -185,6 +185,11 @@ namespace http_handler {
             return game_.player_list_response(std::move(req));
         }
 
+        if (api_request_line == "/v1/game/tick"sv) {
+            // обрабатываем запрос по изменению состояния игровой сессии сов ременем
+            return game_.session_time_update_response(std::move(req));
+        }
+
         if (api_request_line == "/v1/game/state"sv) {
             // обрабатываем запрос по получению инфы о игровом состоянии персонажей
             return game_.game_state_response(std::move(req));
@@ -201,6 +206,18 @@ namespace http_handler {
             // отправляемся на поиски запрошенной карты
             return game_.find_map_response(std::move(req),
                 { api_request_line.begin() + 9, api_request_line.end() });
+        }
+
+        // мои персональные методы для отладки вне основной задачи
+
+        if (api_request_line == "/v1/game/debug/reset"sv) {
+            // обрабатываем запрос на сброс и удаление всех игровых сессий, нужно для тестов
+            return game_.game_sessions_reset_response(std::move(req));
+        }
+
+        if (api_request_line == "/v1/game/debug/position"sv) {
+            // обрабатываем запрос на установку флага случайной позиции на старте
+            return game_.game_start_position_response(std::move(req));
         }
 
         // на крайний случай просто скажем, что запрос плохой
