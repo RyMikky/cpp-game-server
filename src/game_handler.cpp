@@ -7,9 +7,72 @@ namespace game_handler {
 	namespace fs = std::filesystem;
 	namespace json = boost::json;
 
+	// -------------------------- class GameTimer ----------------------------
+
+	// запускает выполнение таймера
+	GameTimer& GameTimer::start_execution() {
+		if (!execution_) {
+			execution_ = true;
+			sys::error_code error_code;
+			execution_impl(error_code);
+		}
+		return *this;
+	}
+	// останавливает выполнение таймера
+	GameTimer& GameTimer::stop_execution() {
+		if (execution_) {
+			execution_ = false;
+		}
+		return *this;
+	}
+	// назначает новый временной интервал таймера
+	GameTimer& GameTimer::set_period(std::chrono::milliseconds period) {
+		if (!execution_) {
+			period_ = period;
+			return *this;
+		}
+
+		throw std::runtime_error("GameTimer::set_period::Error::Timer execution flag is \"true\"");
+	}
+	// назначение новой функции для выполнения по таймеру
+	GameTimer& GameTimer::set_execution_function(Function&& function) {
+		if (!execution_) {
+			function_ = std::move(function);
+			return *this;
+
+		}
+		throw std::runtime_error("GameTimer::set_execution_function::Error::Timer execution flag is \"true\"");
+	}
+	// основная имплементация выполнения таймера
+	void GameTimer::execution_impl(sys::error_code ec) {
+		// выполнение начинается только после установки флага о начале выполнения
+		if (execution_) {
+			try
+			{
+				timer_.async_wait(
+					net::bind_executor(api_strand_, [self = shared_from_this()](sys::error_code ec) {
+						// вызываем выполнение требуемой функции
+						self->function_(self->period_);
+						// переносим таймер на время периода повторения
+						self->timer_.expires_from_now(self->period_);
+						// снова вызываем метод выполнения
+						self->execution_impl(ec);
+					}));
+			}
+			catch (const std::exception& e)
+			{
+				std::cerr << "GameTimer::execution_impl::Error " + std::string(e.what()) << std::endl;
+				throw std::runtime_error("GameTimer::execution_impl::Error " + std::string(e.what()));
+			}
+			
+		}
+		else {
+			timer_.cancel();            // если флаг выполнения снят, то останавливаем таймер
+		}
+	}
+
 	// -------------------------- class GameSession --------------------------
 	
-
 	// задаёт флаг случайной позиции для старта новых игроков
 	GameSession& GameSession::set_start_random_position(bool start_random_position) {
 		start_random_position_ = start_random_position;
@@ -336,25 +399,29 @@ namespace game_handler {
 		return _hasher(map->GetName()) + _hasher(*(map->GetId()));
 	}
 
-	// Возвращает ответ на запрос по установке флага случайного стартового расположения
-	http_handler::Response GameHandler::game_start_position_response(http_handler::StringRequest&& req) {
-		if (req.method_string() != http_handler::Method::POST) {
-			// если у нас не POST-запрос, то кидаем отбойник
-			return method_not_allowed_impl(std::move(req), http_handler::Method::POST);
+	// Выполняет обновление всех открытых игровых сессий по времени
+	void GameHandler::session_time_update(int time) {
+		if (time > 0) {
+			// запускаем обновление всех игровых сессий во всех игровых инстансах за O(N*K), 
+			// где N - количество открытых инстансов, K - количество открытых игровых сессий в инстансе 
+			for (auto& instance : instances_) {
+				// берем сессии из инстанса
+				for (auto& session : instance.second) {
+					// обновляем каждую сессию
+					session->update_state(time);
+				}
+			}
 		}
+		else {
+			throw std::runtime_error("GameHandler::(void)::session_time_update::Error::Income time < {0} ms");
+		}
+	}
+	// Назначает флаг случайного размещения игроков на картах
+	void GameHandler::set_start_random_position(bool flag) {
 
-		try
-		{
-			// парсим тело запроса, все исключения в процессе будем ловить в catch_блоке
-			json::value req_data = json_detail::parse_text_to_json(req.body());
-			std::string flag = req_data.at("randomPosition").as_string().data();
-
-			if (flag == "false") {
-				start_random_position_ = false;
-			}
-			else if (flag == "true") {
-				start_random_position_ = true;
-			}
+		if (start_random_position_ != flag) {
+			// если переданный флаг отличается от установленного
+			start_random_position_ = flag;
 
 			// запускаем обновление всех игровых сессий во всех игровых инстансах за O(N*K), 
 			// где N - количество открытых инстансов, K - количество открытых игровых сессий в инстансе 
@@ -365,48 +432,18 @@ namespace game_handler {
 					session->set_start_random_position(start_random_position_);
 				}
 			}
-
-			http_handler::StringResponse response(http::status::ok, req.version());
-			response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
-			response.set(http::field::cache_control, "no-cache");
-
-			if (start_random_position_) {
-				response.body() = json_detail::get_debug_argument("startRandomPosition", "true");
-			}
-			else {
-				response.body() = json_detail::get_debug_argument("startRandomPosition", "false");
-			}
-
-			return response;
-		}
-		catch (const std::exception&)
-		{
-			return bad_request_response(std::move(req), "invalidArgument"sv, "Debug game start position request parse error"sv);
 		}
 	}
-	// Возвращает ответ на запрос по удалению всех игровых сессий из обработчика
-	http_handler::Response GameHandler::game_sessions_reset_response(http_handler::StringRequest&& req) {
-		if (req.method_string() != http_handler::Method::POST) {
-			// если у нас не POST-запрос, то кидаем отбойник
-			return method_not_allowed_impl(std::move(req), http_handler::Method::POST);
-		}
-
+	// Сбрасывает и удаляет все активные игровые сессии
+	void GameHandler::game_sessions_resset() {
 		try
 		{
 			instances_.clear();            // понадеемся на умное удаление в шаред поинтерах
 			tokens_list_.clear();          // как только все шары самоуничтожатся, сессии прекратят существовать
-
-			http_handler::StringResponse response(http::status::ok, req.version());
-
-			response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
-			response.set(http::field::cache_control, "no-cache");
-			response.body() = json_detail::get_debug_argument("gameDataStatus", "dataIsClear");
-
-			return response;
 		}
-		catch (const std::exception&)
+		catch (const std::exception& e)
 		{
-			return bad_request_response(std::move(req), "FatalError"sv, "Data Reset request is fail"sv);
+			throw std::runtime_error("GameHandler::game_sessions_resset::Error::" + std::string(e.what()));
 		}
 	}
 
@@ -421,14 +458,14 @@ namespace game_handler {
 		auto content_type = req.find("Content-Type");
 		if (content_type == req.end() || content_type->value() != "application/json") {
 			// если нет тушки по авторизации, тогда кидаем отбойник
-			return bad_request_response(std::move(req),
-				"invalidArgument"sv, "Invalid content type"sv);
+			return common_fail_response_impl(std::move(req), http::status::bad_request,
+				"invalidArgument", "Invalid content type");
 		}
 
 		if (req.body().size() == 0) {
 			// если нет тела запроса, тогда запрашиваем
-			return bad_request_response(std::move(req),
-				"invalidArgument"sv, "Request body whit argument <timeDelta> expected"sv);
+			return common_fail_response_impl(std::move(req), http::status::bad_request,
+				"invalidArgument", "Request body whit argument <timeDelta> expected");
 		}
 
 		try
@@ -451,14 +488,14 @@ namespace game_handler {
 		auto content_type = req.find("Content-Type");
 		if (content_type == req.end() || content_type->value() != "application/json") {
 			// если нет тушки по авторизации, тогда кидаем отбойник
-			return bad_request_response(std::move(req),
-				"invalidArgument"sv, "Invalid content type"sv);
+			return common_fail_response_impl(std::move(req), http::status::bad_request,
+				"invalidArgument", "Invalid content type");
 		}
 
 		if (req.body().size() == 0) {
 			// если нет тела запроса, тогда запрашиваем
-			return bad_request_response(std::move(req),
-				"invalidArgument"sv, "Request body whit argument <move> expected"sv);
+			return common_fail_response_impl(std::move(req), http::status::bad_request,
+				"invalidArgument", "Request body whit argument <move> expected");
 		}
 
 		try
@@ -528,8 +565,8 @@ namespace game_handler {
 		{
 			if (req.body().size() == 0) {
 				// если нет тела запроса, тогда запрашиваем
-				return bad_request_response(std::move(req),
-					"invalidArgument"sv, "Header body whit two arguments <userName> and <mapId> expected"sv);
+				return common_fail_response_impl(std::move(req), http::status::bad_request,
+					"invalidArgument", "Header body whit two arguments <userName> and <mapId> expected");
 			}
 
 			// парсим тело запроса, все исключения в процессе будем ловить в catch_блоке
@@ -538,12 +575,14 @@ namespace game_handler {
 			{
 				// если в блоке вообще нет графы "userName" или "mapId"
 				if (!req_data.as_object().count("userName") || !req_data.as_object().count("mapId")) {
-					return bad_request_response(std::move(req), "invalidArgument"sv, "Two arguments <userName> and <mapId> expected"sv);
+					return common_fail_response_impl(std::move(req), http::status::bad_request,
+						"invalidArgument", "Two arguments <userName> and <mapId> expected");
 				}
 
 				// если в "userName" пустота
 				if (req_data.as_object().at("userName") == "") {
-					return bad_request_response(std::move(req), "invalidArgument"sv, "Invalid name"sv);
+					return common_fail_response_impl(std::move(req), http::status::bad_request,
+						"invalidArgument", "Invalid name");
 				}
 
 				// ищем запрошенную карту
@@ -553,7 +592,8 @@ namespace game_handler {
 
 				if (map == nullptr) {
 					// если карта не найдена, то кидаем отбойник
-					return map_not_found_response_impl(std::move(req));
+					return common_fail_response_impl(std::move(req), http::status::not_found,
+						"mapNotFound", "Map not found");
 				}
 				else {
 					// если карта есть и мы получили указатель
@@ -564,7 +604,8 @@ namespace game_handler {
 		}
 		catch (const std::exception&)
 		{
-			return bad_request_response(std::move(req), "invalidArgument"sv, "Join game request parse error"sv);
+			return common_fail_response_impl(std::move(req), http::status::bad_request,
+				"invalidArgument", "Join game request parse error");
 		}
 	}
 	// Возвращает ответ на запрос по поиску конкретной карты
@@ -575,7 +616,8 @@ namespace game_handler {
 
 		if (map == nullptr) {
 			// если карта не найдена, то кидаем отбойник
-			return map_not_found_response_impl(std::move(req));
+			return common_fail_response_impl(std::move(req), http::status::not_found,
+				"mapNotFound", "Map not found");
 		}
 		else {
 
@@ -590,7 +632,6 @@ namespace game_handler {
 
 			return response;
 		}
-
 	}
 	// Возвращает ответ со списком загруженных карт
 	http_handler::Response GameHandler::map_list_response(http_handler::StringRequest&& req) {
@@ -600,34 +641,6 @@ namespace game_handler {
 
 		// заполняем тушку ответа с помощью жисонского метода
 		std::string body_str = json_detail::get_map_list(game_simple_.get_maps());
-		response.set(http::field::content_length, std::to_string(body_str.size()));
-		response.body() = body_str;
-
-		return response;
-	}
-	// Возвращает ответ, что запрос некорректный
-	http_handler::Response GameHandler::bad_request_response(
-		http_handler::StringRequest&& req, std::string_view code, std::string_view message) {
-		http_handler::StringResponse response(http::status::bad_request, req.version());
-		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
-		response.set(http::field::cache_control, "no-cache");
-
-		// заполняем тушку ответа с помощью жисонского метода
-		std::string body_str = json_detail::get_error_string(code, message);
-		response.set(http::field::content_length, std::to_string(body_str.size()));
-		response.body() = body_str;
-
-		return response;
-	}
-	// Возвращает ответ, что запрос не прошёл валидацию
-	http_handler::Response GameHandler::unauthorized_response(
-		http_handler::StringRequest&& req, std::string_view code, std::string_view message) {
-		http_handler::StringResponse response(http::status::unauthorized, req.version());
-		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
-		response.set(http::field::cache_control, "no-cache");
-
-		// заполняем тушку ответа с помощью жисонского метода
-		std::string body_str = json_detail::get_error_string(code, message);
 		response.set(http::field::content_length, std::to_string(body_str.size()));
 		response.body() = body_str;
 
@@ -682,8 +695,8 @@ namespace game_handler {
 
 			if (!body.count("timeDelta") || (!body.at("timeDelta").is_number() && !body.at("timeDelta").is_string())) {
 				// если в теле запроса отсутствует поле "timeDelta", или его значение не валидно
-				return bad_request_response(std::move(req),
-					"invalidArgument"sv, "Failed to parse tick request JSON"sv);
+				return common_fail_response_impl(std::move(req), http::status::bad_request,
+					"invalidArgument", "Failed to parse tick request JSON");
 			}
 
 			int time = 0;
@@ -697,7 +710,8 @@ namespace game_handler {
 
 			if (time == 0) {
 				// если задают ноль, то также выдаём badRequest
-				return bad_request_response(std::move(req), "invalidArgument"sv, "Failed to parse tick request JSON"sv);
+				return common_fail_response_impl(std::move(req), http::status::bad_request,
+					"invalidArgument", "Failed to parse tick request JSON");
 			}
 
 			// запускаем обновление всех игровых сессий во всех игровых инстансах за O(N*K), 
@@ -721,7 +735,8 @@ namespace game_handler {
 		}
 		catch (const std::exception&)
 		{
-			return bad_request_response(std::move(req), "invalidArgument"sv, "Failed to parse tick request JSON"sv);
+			return common_fail_response_impl(std::move(req), http::status::bad_request,
+				"invalidArgument", "Failed to parse tick request JSON");
 		}
 	}
 	// Возвращает ответ на запрос о состоянии игроков в игровой сессии
@@ -733,9 +748,8 @@ namespace game_handler {
 			json::object body = json_detail::parse_text_to_json(req.body()).as_object();
 
 			if (!body.count("move") || !detail::check_player_move(body.at("move").as_string())) {
-				// если в теле запроса отсутствует поле "Move", или его значение не валидно
-				return bad_request_response(std::move(req),
-					"invalidArgument"sv, "Failed to parse action"sv);
+				return common_fail_response_impl(std::move(req), http::status::bad_request,
+					"invalidArgument", "Failed to parse action");
 			}
 
 			// получаем сессию где на данный момент "висит" указанный токен
@@ -754,7 +768,8 @@ namespace game_handler {
 		}
 		catch (const std::exception&)
 		{
-			return bad_request_response(std::move(req), "invalidArgument"sv, "Failed to parse action"sv);
+			return common_fail_response_impl(std::move(req), http::status::bad_request,
+				"invalidArgument", "Failed to parse action");
 		}
 	}
 	// Возвращает ответ на запрос о состоянии игроков в игровой сессии
@@ -849,18 +864,6 @@ namespace game_handler {
 
 		return response;
 	}
-	// Возвращает ответ, что упомянутая карта не найдена
-	http_handler::Response GameHandler::map_not_found_response_impl(http_handler::StringRequest&& req) {
-		http_handler::StringResponse response(http::status::not_found, req.version());
-		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
-		response.set(http::field::cache_control, "no-cache");
-
-		std::string body_str = json_detail::get_error_string("mapNotFound"sv, "Map not found"sv);
-		response.set(http::field::content_length, std::to_string(body_str.size()));
-		response.body() = body_str;
-
-		return response;
-	}
 	// Возвращает ответ, что запрошенный метод не ражрешен, доступный указывается в аргументе allow
 	http_handler::Response GameHandler::method_not_allowed_impl(http_handler::StringRequest&& req, std::string_view allow) {
 		http_handler::StringResponse response(http::status::method_not_allowed, req.version());
@@ -868,6 +871,23 @@ namespace game_handler {
 		response.set(http::field::cache_control, "no-cache");
 		response.set(http::field::allow, allow);
 		response.body() = json_detail::get_error_string("invalidMethod"sv, ("Only "s + std::string(allow) + " method is expected"s));
+
+		return response;
+	}
+
+	// Возвращает ответ на все варианты неверных и невалидных запросов
+	http_handler::Response GameHandler::common_fail_response_impl(http_handler::StringRequest&& req, 
+		http::status status, std::string_view code, std::string_view message) {
+
+		http_handler::StringResponse response(status, req.version());
+		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
+		response.set(http::field::cache_control, "no-cache");
+
+		// заполняем тушку ответа с помощью жисонского метода
+		std::string body_str = json_detail::get_error_string(code, message);
+		response.set(http::field::content_length, std::to_string(body_str.size()));
+		response.body() = body_str;
+		response.prepare_payload();
 
 		return response;
 	}

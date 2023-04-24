@@ -9,7 +9,8 @@
 
 #include "logger_handler.h"                          // базовый инклюд обеспечивающий доступ к логгеру в данном участке кода
 #include "request_handler.h"                         // базовый инклюд открывающий доступ к серверу, обработчику ресурсов
-#include "test_frame.h"
+#include "test_frame.h"                              // тестовый фрейм, содержащий большое количество тестов системы
+#include "options.h"                                 // функционал запуска приложения
 
 using namespace std::literals;
 namespace net = boost::asio;
@@ -19,7 +20,7 @@ namespace {
 
 // Запускает функцию fn на n потоках, включая текущий
 template <typename Fn>
-void RunWorkers(unsigned n, const Fn& fn) {
+void RunWorkers(unsigned n, test::TestConfiguration&& test_config, const Fn& fn) {
     n = std::max(1u, n);
     std::vector<std::jthread> workers;
     workers.reserve(n - 1);
@@ -29,8 +30,10 @@ void RunWorkers(unsigned n, const Fn& fn) {
     }
 
     {
-        // таким образом как только выйдем из области видимости класс уничтожится
-         test::SimpleTest("127.0.0.1", "8080", "../test/");
+        if (test_config.enable_) {
+            // таким образом как только выйдем из области видимости класс уничтожится
+            test::SimpleTest(std::move(test_config));
+        }
     }
     
     fn();
@@ -43,28 +46,34 @@ int main(int argc, const char* argv[]) {
     setlocale(LC_ALL, "Russian");
     setlocale(LC_NUMERIC, "English");
 
-    if (argc != 3) {
-        std::cerr << "Usage: game_server <game-config-json> <static_data_path>"sv << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    try {
-        // 0.1. Инициализируем буст-логгер, для базовой инициализации можно подать любой консольный поток
+    try
+    {
+        // 1. Инициализируем буст-логгер, для базовой инициализации можно подать любой консольный поток
         logger_handler::detail::BoostLogBaseSetup(std::cout);
 
-        // 1. Загружаем карту из файла и строим модель игры
-        game_handler::GameHandler game{ argv[1] };
-        // 2. Загружаем данные в обработчик ресурсов
-        resource_handler::ResourceHandler resource{ argv[2] };
+        // 2. Парсим командную строку и получаем конфигурацию запуска
+        // в случае нехватки ключевых аргументов будут выброшены исключения
+        detail::Arguments command_line = detail::ParseCommandLine(argc, argv);
 
-        // обработчики ресурсов и игры пока что подержим на стеке, так как стек работает быстрее 
-        // в случае необходимости уведем их на шару в кучу
+        if (command_line.show_help_list) {
+            return EXIT_SUCCESS;
+        }
 
-        // 3. Инициализируем io_context
+        // 3. Если есть упоминания о тестах, подготавливаем конфигурацию запуска тестов
+        test::TestConfiguration test_config;
+        if (command_line.test_frame_launch) {
+            test_config.address_ = "127.0.0.1";
+            test_config.port_ = "8080";
+            test_config.root_ = command_line.test_content_path;
+            test_config.authorization_ = http_handler::__DEBUG_REQUEST_AUTORIZATION_PASSWORD__;
+            test_config.enable_ = true;
+        }
+
+        // 4. Инициализируем io_context
         const unsigned num_threads = std::thread::hardware_concurrency();
         net::io_context ioc(num_threads);
 
-        // 4. Добавляем асинхронный обработчик сигналов SIGINT и SIGTERM
+        // 5. Добавляем асинхронный обработчик сигналов SIGINT и SIGTERM
         net::signal_set signals(ioc, SIGINT, SIGTERM);
         signals.async_wait([&ioc](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
             if (!ec) {
@@ -73,10 +82,11 @@ int main(int argc, const char* argv[]) {
             }
             });
 
-        // 5. Создаём обработчик HTTP-запросов в шаре и связываем его с моделью игры, статическими данными и контекстом
-        auto request_handler = std::make_shared<http_handler::RequestHandler>(game, resource, ioc );
+        // 6. Создаём обработчик HTTP-запросов в шаре, конструктор обработчика сконфигурирует 
+        // модель игры, статические данные, контекст для api, таймер автообновления по полученным настройкам
+        auto request_handler = std::make_shared<http_handler::RequestHandler>(std::move(command_line), ioc);
 
-        // 6. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
+        // 7. Запускаем веб-сервер делегируя поступающие запросы их обработчику
         const auto address = net::ip::make_address("0.0.0.0");
         constexpr net::ip::port_type port = 8080;
 
@@ -84,14 +94,15 @@ int main(int argc, const char* argv[]) {
             (*request_handler)(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
             });
 
-        // 7. Запускаем обработку асинхронных операций
-        RunWorkers(std::max(1u, num_threads), [&ioc] {
+        // 8. Запускаем обработку асинхронных операций
+        RunWorkers(std::max(1u, num_threads), std::move(test_config), [&ioc] {
             ioc.run();
-        });
+            });
 
-    } catch (const std::exception& ex) {
+    }
+    catch (const std::exception& ex)
+    {
         logger_handler::LogException(ex);
-
         return EXIT_FAILURE;
     }
 }

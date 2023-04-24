@@ -6,10 +6,11 @@
 
 namespace test {
 
-    SimpleTest::SimpleTest(std::string_view address, std::string_view port, std::string_view ref_file_directory_prefix) 
-        : resolver_(ioc_), stream_(ioc_), ref_file_directory_prefix_(ref_file_directory_prefix) {
+    SimpleTest::SimpleTest(TestConfiguration&& config)
+        : config_(config), resolver_(ioc_), stream_(ioc_) {
+
         try {
-            endpoint_ = resolver_.resolve(address, port);
+            endpoint_ = resolver_.resolve(config_.address_, config_.port_);
 
             RunAllTests();
         }
@@ -17,6 +18,7 @@ namespace test {
             std::cerr << "Error: " << e.what() << std::endl;
         }
     }
+
 
     SimpleTest& SimpleTest::RunAllTests() {
 
@@ -33,13 +35,18 @@ namespace test {
 
         assert(TestApiDebugSessionsClear());                // очищаем данные тестовых сессий
         std::cerr << "TestApiDebugSessionsClear()::Complete::Status....................Ok\n" << std::endl;
-        assert(TestApiDebugSetStartRandomPosition(true));    // возвращаем флаг рандомного расположения игроков
-        std::cerr << "TestApiDebugSetStartRandomPosition(true)::Complete::Status.......Ok\n" << std::endl;
+        assert(TestApiDebugResetStartRandomPosition());    // возвращаем флаг рандомного расположения игроков
+        std::cerr << "TestApiDebugResetStartRandomPosition()::Complete::Status.........Ok\n" << std::endl;
+        assert(TestApiDebugTestFrameEnd());                 // снимает свой флаг у обработчика запросов
+        std::cerr << "TestApiDebugTestFrameEnd()::Complete::Status.....................Ok\n" << std::endl;
+        assert(TestApiDebugEndpointClose());                // проверяет что доступ по цели /test_frame закрыт
+        std::cerr << "TestApiDebugEndpointClose()::Complete::Status....................Ok\n" << std::endl;
 
         std::cerr << std::endl;
         std::cerr << "SimpleTest::RunAllTests()::Complete......................Status::Ok\n";
         std::cerr << "SimpleTest::TestDataSessions::Clear......................Status::Ok\n";
         std::cerr << "SimpleTest::ControlTransfer..............................Status::Ok\n";
+        std::cerr << std::endl;
 
         return *this;
     }
@@ -63,7 +70,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, ""sv, 200, 
-                ref_file_directory_prefix_ + "basic/test_api_maps.txt"));
+                config_.root_ + "basic/test_api_maps.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -101,7 +108,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, ""sv, 200, 
-                ref_file_directory_prefix_ + "basic/test_api_map1.txt"));
+                config_.root_ + "basic/test_api_map1.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -138,7 +145,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, ""sv, 200, 
-                ref_file_directory_prefix_ + "basic/test_api_town.txt"));
+                config_.root_ + "basic/test_api_town.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -176,7 +183,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, ""sv, 404, 
-                ref_file_directory_prefix_ + "basic/test_api_map_not_found.txt"));
+                config_.root_ + "basic/test_api_map_not_found.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -214,7 +221,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, ""sv, 400, 
-                ref_file_directory_prefix_ + "basic/test_api_bad_request.txt"));
+                config_.root_ + "basic/test_api_bad_request.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -394,7 +401,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 400, 
-                ref_file_directory_prefix_ + "login/test_api_game_login_miss_name_or_map.txt"));
+                config_.root_ + "login/test_api_game_login_miss_name_or_map.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -433,7 +440,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 400,
-                ref_file_directory_prefix_ + "login/test_api_game_login_invalid_name.txt"));
+                config_.root_ + "login/test_api_game_login_invalid_name.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -472,7 +479,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 400,
-                ref_file_directory_prefix_ + "login/test_api_game_login_miss_name_or_map.txt"));
+                config_.root_ + "login/test_api_game_login_miss_name_or_map.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -511,7 +518,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 404,
-                ref_file_directory_prefix_ + "basic/test_api_map_not_found.txt"));
+                config_.root_ + "basic/test_api_map_not_found.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -550,7 +557,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 400,
-                ref_file_directory_prefix_ + "login/test_api_game_login_invalid_argument.txt"));
+                config_.root_ + "login/test_api_game_login_invalid_argument.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -589,7 +596,7 @@ namespace test {
             // проверяем полученный ответ
             assert(test_response_check(std::move(res), "POST"sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 405,
-                ref_file_directory_prefix_ + "login/test_api_game_login_invalid_method.txt"));
+                config_.root_ + "login/test_api_game_login_invalid_method.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -745,7 +752,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv, 
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200, 
-                ref_file_directory_prefix_ + "autho/test_api_players_list.txt"));
+                config_.root_ + "autho/test_api_players_list.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -781,7 +788,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401, 
-                ref_file_directory_prefix_ + "autho/test_api_authorization_missing.txt"));
+                config_.root_ + "autho/test_api_authorization_missing.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -817,7 +824,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
-                ref_file_directory_prefix_ + "autho/test_api_authorization_missing.txt"));
+                config_.root_ + "autho/test_api_authorization_missing.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -855,7 +862,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
-                ref_file_directory_prefix_ + "autho/test_api_authorization_missing.txt"));
+                config_.root_ + "autho/test_api_authorization_missing.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -892,7 +899,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
-                ref_file_directory_prefix_ + "autho/test_api_token_not_found.txt"));
+                config_.root_ + "autho/test_api_token_not_found.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -930,7 +937,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), "GET, HEAD"sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 405,
-                ref_file_directory_prefix_ + "autho/test_api_players_list_invalid_method.txt"));
+                config_.root_ + "autho/test_api_players_list_invalid_method.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1013,8 +1020,8 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/debug/reset"sv,
-                http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, ""sv, ""sv));
+            http::write(stream_, make_test_request(endpoint_, "/test_frame/reset"sv,
+                http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer " + config_.authorization_, ""sv));
 
             // создаем объект ответа
             beast::flat_buffer buffer; http::response<http::dynamic_body> res;
@@ -1024,7 +1031,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
-                ref_file_directory_prefix_ + "debug/test_api_debug_data_clear.txt"));
+                config_.root_ + "debug/test_api_debug_data_clear.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1061,8 +1068,8 @@ namespace test {
             }
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/debug/position"sv,
-                http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, ""sv, request_body));
+            http::write(stream_, make_test_request(endpoint_, "/test_frame/position"sv,
+                http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer " + config_.authorization_, request_body));
 
             // создаем объект ответа
             beast::flat_buffer buffer; http::response<http::dynamic_body> res;
@@ -1072,7 +1079,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
-                ref_file_directory_prefix_ + ref_file));
+                config_.root_ + ref_file));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1089,6 +1096,115 @@ namespace test {
             return false;
         }
     }
+
+    bool SimpleTest::TestApiDebugResetStartRandomPosition() {
+        try
+        {
+            // устанавливаем соединение с сервером, используя результаты разрешения
+            stream_.connect(endpoint_);
+
+            // отправляем сгенерированный запрос на сервер
+            http::write(stream_, make_test_request(endpoint_, "/test_frame/position/default"sv,
+                http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer " + config_.authorization_, ""sv));
+
+            // создаем объект ответа
+            beast::flat_buffer buffer; http::response<http::dynamic_body> res;
+
+            // получаем ответ от сервера
+            http::read(stream_, buffer, res);
+
+            assert(test_response_check(std::move(res), ""sv,
+                http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
+                config_.root_ + "debug/test_api_debug_start_position_default.txt"));
+
+            // закрываем соединение с сервером
+            beast::error_code ec;
+            stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            // если произошла ошибка, выводим ее сообщение
+            if (ec && ec != beast::errc::not_connected) {
+                throw beast::system_error{ ec };
+            }
+            return true;
+        }
+        catch (std::exception const& e) {
+            std::cerr << "SimpleTest::TestApiDebugResetStartRandomPosition::Error: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    bool SimpleTest::TestApiDebugTestFrameEnd() {
+        try
+        {
+            // устанавливаем соединение с сервером, используя результаты разрешения
+            stream_.connect(endpoint_);
+
+            // отправляем сгенерированный запрос на сервер
+            http::write(stream_, make_test_request(endpoint_, "/test_frame/test_end"sv,
+                http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer " + config_.authorization_, ""sv));
+
+            // создаем объект ответа
+            beast::flat_buffer buffer; http::response<http::dynamic_body> res;
+
+            // получаем ответ от сервера
+            http::read(stream_, buffer, res);
+
+            assert(test_response_check(std::move(res), ""sv,
+                http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
+                config_.root_ + "debug/test_api_debug_test_end.txt"));
+
+            // закрываем соединение с сервером
+            beast::error_code ec;
+            stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            // если произошла ошибка, выводим ее сообщение
+            if (ec && ec != beast::errc::not_connected) {
+                throw beast::system_error{ ec };
+            }
+            return true;
+        }
+        catch (std::exception const& e) {
+            std::cerr << "SimpleTest::TestApiDebugTestFrameEnd::Error: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    bool SimpleTest::TestApiDebugEndpointClose(){
+        try
+        {
+            // устанавливаем соединение с сервером, используя результаты разрешения
+            stream_.connect(endpoint_);
+
+            // отправляем сгенерированный запрос на сервер
+            http::write(stream_, make_test_request(endpoint_, "/test_frame/reset"sv,
+                http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer " + config_.authorization_, ""sv));
+
+            // создаем объект ответа
+            beast::flat_buffer buffer; http::response<http::dynamic_body> res;
+
+            // получаем ответ от сервера
+            http::read(stream_, buffer, res);
+
+            assert(test_response_check(std::move(res), ""sv,
+                http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
+                config_.root_ + "debug/test_api_debug_bad_request.txt"));
+
+            // закрываем соединение с сервером
+            beast::error_code ec;
+            stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+            // если произошла ошибка, выводим ее сообщение
+            if (ec && ec != beast::errc::not_connected) {
+                throw beast::system_error{ ec };
+            }
+            return true;
+        }
+        catch (std::exception const& e) {
+            std::cerr << "SimpleTest::TestApiDebugEndpointClose::Error: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
 
     bool SimpleTest::TestApiNewFirstLogin(AuthResp& data) {
         try
@@ -1222,50 +1338,13 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            {
-                //// проверяем совпадение типа контента
-                //auto const& content = res.find(http::field::content_type);
-                //if (content != res.end()) {
-                //    assert(content->value() == http_handler::ContentType::APP_JSON);
-                //}
-                //else {
-                //    assert(false);
-                //}
-
-                //// првоеряем совпадение кода ответа сервера
-                //assert(res.result_int() == 200);
-
-                //// загоняем ответ сервера из строки в JSON
-                //auto server_resp = json_detail::parse_text_to_json(
-                //    boost::beast::buffers_to_string(res.body().data()));
-                //// в ответе должна быть запись "players"
-                //assert(server_resp.is_object() && server_resp.as_object().count("players"));
-                //assert(server_resp.as_object().at("players").is_object());
-
-                //for (auto item : server_resp.as_object().at("players").as_object()) {
-                //    assert(item.value().is_object());            // значение ключа должно быть словарем
-                //    assert(item.value().as_object().count("pos") 
-                //        && item.value().as_object().at("pos").is_array());
-                //    assert(item.value().as_object().count("speed") 
-                //        && item.value().as_object().at("speed").is_array());
-                //    assert(item.value().as_object().count("dir") 
-                //        && item.value().as_object().at("dir").is_string());
-
-                //    assert(item.value().as_object().at("speed").as_array().size() == 2);
-                //    assert(item.value().as_object().at("speed").as_array()[0] == 0.0);
-                //    assert(item.value().as_object().at("speed").as_array()[1] == 0.0);
-
-                //    assert(item.value().as_object().at("dir").as_string() == "U");
-                //}
-            }
-
             boost::json::value server_resp = json_detail::parse_text_to_json(
                 boost::beast::buffers_to_string(res.body().data()));
             std::string res_str = boost::beast::buffers_to_string(res.body().data());
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
-                ref_file_directory_prefix_ + "state/test_api_game_state.txt"));
+                config_.root_ + "state/test_api_game_state.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1303,7 +1382,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), "GET, HEAD"sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 405,
-                ref_file_directory_prefix_ + "state/test_api_game_state_invalid_method.txt"));
+                config_.root_ + "state/test_api_game_state_invalid_method.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1341,7 +1420,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
-                ref_file_directory_prefix_ + "autho/test_api_token_not_found.txt"));
+                config_.root_ + "autho/test_api_token_not_found.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1436,7 +1515,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
-                ref_file_directory_prefix_ + "move/test_api_player_move.txt"));
+                config_.root_ + "move/test_api_player_move.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1475,7 +1554,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), "POST"sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 405,
-                ref_file_directory_prefix_ + "login/test_api_game_login_invalid_method.txt"));
+                config_.root_ + "login/test_api_game_login_invalid_method.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1513,7 +1592,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
-                ref_file_directory_prefix_ + "autho/test_api_authorization_missing.txt"));
+                config_.root_ + "autho/test_api_authorization_missing.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1550,7 +1629,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
-                ref_file_directory_prefix_ + "autho/test_api_token_not_found.txt"));
+                config_.root_ + "autho/test_api_token_not_found.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1588,7 +1667,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
-                ref_file_directory_prefix_ + "move/test_api_player_move_invalid_content_type.txt"));
+                config_.root_ + "move/test_api_player_move_invalid_content_type.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1626,7 +1705,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
-                ref_file_directory_prefix_ + "move/test_api_player_move_miss_body.txt"));
+                config_.root_ + "move/test_api_player_move_miss_body.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1664,7 +1743,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
-                ref_file_directory_prefix_ + "move/test_api_player_move_invalid_body.txt"));
+                config_.root_ + "move/test_api_player_move_invalid_body.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1706,7 +1785,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
-                ref_file_directory_prefix_ + "move/test_api_player_move_state.txt"));
+                config_.root_ + "move/test_api_player_move_state.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1821,7 +1900,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
-                ref_file_directory_prefix_ + "time/test_api_time_tick.txt"));
+                config_.root_ + "time/test_api_time_tick.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1858,7 +1937,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
-                ref_file_directory_prefix_ + "time/test_api_time_tick_invalid_body.txt"));
+                config_.root_ + "time/test_api_time_tick_invalid_body.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1895,7 +1974,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
-                ref_file_directory_prefix_ + "time/test_api_time_tick_miss_body.txt"));
+                config_.root_ + "time/test_api_time_tick_miss_body.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;
@@ -1937,7 +2016,7 @@ namespace test {
 
             assert(test_response_check(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
-                ref_file_directory_prefix_ + "time/test_api_time_tick_state.txt"));
+                config_.root_ + "time/test_api_time_tick_state.txt"));
 
             // закрываем соединение с сервером
             beast::error_code ec;

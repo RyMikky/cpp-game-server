@@ -28,9 +28,16 @@ using namespace std::literals;
 
 namespace http_handler {
 
+    namespace fs = std::filesystem;
     namespace beast = boost::beast;
     namespace http = beast::http;
     namespace sys = boost::system;
+    namespace net = boost::asio;
+
+    // пароль для тестовой системы для обработки запросов из фрейма проверки по установке различных состояний игровой системы
+    const std::string __DEBUG_REQUEST_AUTORIZATION_PASSWORD__ = "wCp74sDSs12-D7Er4+471cAwdXzV4q1Y"s;
+
+    using Strand = net::strand<net::io_context::executor_type>;
 
     static const std::unordered_map<std::string, char> __ASCII_CODE_TO_CHAR__ = {
         {"%20", ' '}, {"%21", '!'}, {"%22", '\"'}, {"%23", '#'}, {"%24", '$'}, {"%25", '%'}, {"%26", '&'}, {"%27", '\''}, {"%28", '('}, {"%29", ')'},
@@ -95,7 +102,7 @@ namespace resource_handler {
 
     // базовый массив данных в виде "название файла / путь к файлу"
     using FileIndexNameToPath = std::unordered_map<std::string_view, ResourcePtr>;
-    // базовый массив данных в виде "название файла / путь к файлу"
+    // базовый массив данных в виде "путь к файлу / название файла"
     using FileIndexPathToName = std::unordered_map<std::string_view, ResourcePtr>;
 
 } // namespace resource_handler

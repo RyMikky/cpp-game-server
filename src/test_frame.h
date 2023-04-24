@@ -19,19 +19,28 @@ using namespace std::literals;
 
 namespace test {
 
+	struct TestConfiguration {
+		std::string address_;
+		std::string port_;
+		std::string root_;
+		std::string authorization_;
+
+		bool enable_ = false;
+	};
+
 	class SimpleTest {
 		using AuthResp = std::pair<std::string, size_t>;    // ответ на вход в игру, токен и id
 		using resolver_endpoint = boost::asio::ip::basic_resolver_results<boost::asio::ip::tcp>;
 	public:
-		SimpleTest(std::string_view address, std::string_view port, std::string_view ref_file_directory_prefix);
-		SimpleTest& RunAllTests();
+		explicit SimpleTest(TestConfiguration&& config);
 
+		SimpleTest& RunAllTests();
 	private:
+		TestConfiguration config_;
 		asio::io_context ioc_;
 		tcp::resolver resolver_;
 		resolver_endpoint endpoint_;
 		beast::tcp_stream stream_;
-		std::string ref_file_directory_prefix_ = "";
 
 		// ---------- блок проверки базовых запросов к API ---------
 
@@ -67,11 +76,17 @@ namespace test {
 		bool TestApiGamePlayerListInvalidMethod(AuthResp& data);            // запрос на просмотр с невалидным методом
 
 		bool TestApiAuthorizationSet();                                     // запуск вышеизложенного сета
-
-		// ---------- блок проверки запроса состояния игры ---------
+		
+		// ---------- блок управляющих запросов тест-системы -------
 
 		bool TestApiDebugSessionsClear();                                   // запрос на удаление всех игровых сессий
 		bool TestApiDebugSetStartRandomPosition(bool flag);                 // запрос на назначение флага случайного размещения новых игроков
+		bool TestApiDebugResetStartRandomPosition();                        // то же что и выше, но по параметрам из конфигурационного файла
+		bool TestApiDebugTestFrameEnd();                                    // запрос на прекращение работы тест-системы
+		bool TestApiDebugEndpointClose();                                   // запрос о проверке доступа после завершения тестов
+
+		// ---------- блок проверки запроса состояния игры ---------
+
 		bool TestApiNewFirstLogin(AuthResp& data);                          // запрос на новый вход в игру после очистки данных
 		bool TestApiNewSecondLogin(AuthResp& data);                         // запрос на новый вход в игру после очистки данных
 		bool TestApiGameState(AuthResp& data);                              // запрос на получение состояния персонажей на карте

@@ -4,15 +4,18 @@
 #include "json_loader.h"
 #include "boost_json.h"
 
+
 #include <vector>
 #include <memory>
-#include <thread>
+#include <chrono>
+//#include <thread>
 #include <mutex>
-#include <filesystem>
-#include <numeric>
+//#include <numeric>
 #include <optional>
-#include <variant>
-#include <execution>
+//#include <variant>
+//#include <execution>
+//#include <filesystem>
+#include <functional>
 #include <unordered_map>
 
 namespace game_handler {
@@ -25,8 +28,42 @@ namespace game_handler {
 	namespace beast = boost::beast;
 	namespace http = beast::http;
 	namespace net = boost::asio;
+	namespace sys = boost::system;
 
 	class GameHandler; // forward-definition
+
+	class GameTimer : public std::enable_shared_from_this<GameTimer> {
+		using Timer = net::steady_timer;
+		using Function = std::function<void(std::chrono::milliseconds delta)>;
+	public:
+		GameTimer(http_handler::Strand& strand, std::chrono::milliseconds period, Function&& function)
+			: api_strand_(strand), period_(period), function_(std::move(function)) {
+		}
+
+		GameTimer(const GameTimer&) = delete;
+		GameTimer& operator=(const GameTimer&) = delete;
+		GameTimer(GameTimer&&) = default;
+		GameTimer& operator=(GameTimer&&) = default;
+
+		// запускает выполнение таймера
+		GameTimer& start_execution();
+		// останавливает выполнение таймера
+		GameTimer& stop_execution();
+		// назначает новый временной интервал таймера
+		GameTimer& set_period(std::chrono::milliseconds period);
+		// назначение новой функции для выполнения по таймеру
+		GameTimer& set_execution_function(Function&& function);
+
+	private:
+		http_handler::Strand& api_strand_;
+		std::chrono::milliseconds period_;
+		Function function_;
+		Timer timer_{ api_strand_, period_ };
+
+		bool execution_ = false;
+		// основная имплементация выполнения таймера
+		void execution_impl(sys::error_code ec);
+	};
 
 	// класс-обработчик текущей игровой сессии
 	class GameSession : public std::enable_shared_from_this<GameSession> {
@@ -118,11 +155,13 @@ namespace game_handler {
 			: game_simple_(json_loader::load_game(configuration)) {
 		}
 
-		// Возвращает ответ на запрос по установке флага случайного стартового расположения
-		http_handler::Response game_start_position_response(http_handler::StringRequest&& req);
-		// Возвращает ответ на запрос по удалению всех игровых сессий из обработчика
-		http_handler::Response game_sessions_reset_response(http_handler::StringRequest&& req);
-
+		// Выполняет обновление всех открытых игровых сессий по времени
+		void session_time_update(int time);
+		// Назначает флаг случайного размещения игроков на картах
+		void set_start_random_position(bool flag);
+		// Сбрасывает и удаляет все активные игровые сессии
+		void game_sessions_resset();
+		
 		// Возвращает ответ на запрос по изменению состояния игровой сессии со временем
 		http_handler::Response session_time_update_response(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос о совершении действий персонажем
@@ -137,10 +176,6 @@ namespace game_handler {
 		http_handler::Response find_map_response(http_handler::StringRequest&& req, std::string_view find_request_line);
 		// Возвращает ответ со списком загруженных карт
 		http_handler::Response map_list_response(http_handler::StringRequest&& req);
-		// Возвращает ответ, что запрос некорректный
-		http_handler::Response bad_request_response(http_handler::StringRequest&& req, std::string_view code, std::string_view message);
-		// Возвращает ответ, что запрос не прошёл валидацию
-		http_handler::Response unauthorized_response(http_handler::StringRequest&& req, std::string_view code, std::string_view message);
 
 	protected: // протектед блок доступен только friend class -у для обратной записи данных и получения уникальных токенов
 		/* 
@@ -173,10 +208,12 @@ namespace game_handler {
 		http_handler::Response player_list_response_impl(http_handler::StringRequest&& req, const Token* token);
 		// Возвращает ответ, о успешном добавлении игрока в игровую сессию
 		http_handler::Response join_game_response_impl(http_handler::StringRequest&& req, json::value&& body, const model::Map* map);
-		// Возвращает ответ, что упомянутая карта не найдена
-		http_handler::Response map_not_found_response_impl(http_handler::StringRequest&& req);
 		// Возвращает ответ, что запрошенный метод не разрешен, доступные указывается в аргументе allow
 		http_handler::Response method_not_allowed_impl(http_handler::StringRequest&& req, std::string_view allow);
+
+		// Возвращает ответ на все варианты неверных и невалидных запросов
+		http_handler::Response common_fail_response_impl(http_handler::StringRequest&& req, 
+			http::status status, std::string_view code, std::string_view message);
 
 		// метод проверяющий совпадение токена с предоставленным, если токен корректнен и есть в базе, то возвращается токен
 		template <typename Function>
@@ -219,8 +256,10 @@ namespace game_handler {
 		auto auth_iter = req.find("Authorization");
 		if (auth_iter == req.end()) {
 			// если нет тушки по авторизации, тогда кидаем отбойник
-			return unauthorized_response(std::move(req),
-				"invalidToken"sv, "Authorization header is missing"sv);
+			/*return unauthorized_response(std::move(req),
+				"invalidToken"sv, "Authorization header is missing"sv);*/
+			return common_fail_response_impl(std::move(req), http::status::unauthorized,
+				"invalidToken", "Authorization header is missing");
 		}
 
 		// из тушки запроса получаем строку
@@ -229,20 +268,22 @@ namespace game_handler {
 
 		if (!auth_reparse) {
 			// если нет строки Bearer, или она корявая, или токен пустой, то кидаем отбойник
-			return unauthorized_response(std::move(req),
-				"invalidToken"sv, "Authorization header is missing"sv);
+			/*return unauthorized_response(std::move(req),
+				"invalidToken"sv, "Authorization header is missing"sv);*/
+			return common_fail_response_impl(std::move(req), http::status::unauthorized,
+				"invalidToken", "Authorization header is missing");
 		}
 
 		Token token{ auth_reparse.value() }; // создаём быстро токен на основе запроса и ищем совпадение во внутреннем массиве
 		if (!tokens_list_.count(token)) {
 			// если заголовок Authorization содержит валидное значение токена, но в игре нет пользователя с таким токеном
-			return unauthorized_response(std::move(req),
-				"unknownToken"sv, "Player token has not been found"sv);
+			/*return unauthorized_response(std::move(req),
+				"unknownToken"sv, "Player token has not been found"sv);*/
+			return common_fail_response_impl(std::move(req), http::status::unauthorized,
+				"unknownToken", "Player token has not been found");
 		}
 
-		//auto t = &tokens_list_.find(token)->first
-
-		// вызываем полченный обработчик
+		// вызываем полученный обработчик
 		return func(std::move(req), &tokens_list_.find(token)->first);
 	}
 
