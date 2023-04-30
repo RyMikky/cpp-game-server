@@ -1,0 +1,4 @@
+{
+   "code": "invalidArgument",
+   "message": "Two arguments <userName> and <mapId> expected"
+} 

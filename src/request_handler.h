@@ -1,8 +1,9 @@
 ﻿#pragma once
 #include "http_server.h"
 #include "resource_handler.h"
-#include "model.h"
-#include "domain.h"
+#include "game_handler.h"             // подключит boost_json.h и json_loader.h
+#include "options.h"                  // подключит аргументы запуска
+#include "domain.h"                   // базовый инклюд с разными объявлениями
 
 namespace http_handler {
 
@@ -10,73 +11,126 @@ namespace http_handler {
     namespace beast = boost::beast;
     namespace http = beast::http;
     namespace res = resource_handler;
+    namespace game = game_handler;
     namespace fs = std::filesystem;
+    namespace net = boost::asio;
 
-    class RequestHandler {
+    class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
     public:
-        RequestHandler(model::Game& game, res::ResourceHandler& resource)
-            : game_{ game }, resource_{ resource } {
+        RequestHandler(detail::Arguments&& arguments, net::io_context& ioc)
+            : arguments_(std::move(arguments)), api_strand_(net::make_strand(ioc)) {
+            configuration_pipeline();
         }
 
         RequestHandler(const RequestHandler&) = delete;
         RequestHandler& operator=(const RequestHandler&) = delete;
 
-        // Создаёт StringResponse с заданными параметрами
-        StringResponse MakeStringResponse(http::status status, std::string_view body, unsigned http_version,
-            bool keep_alive, std::string_view content_type = ContentType::TEXT_HTML);
-
-        // Обработчик GET-запросов в общем смысле
-        Response GetMethodHandle(StringRequest&& req);
-
-        // Базовый обработчик полученного реквеста
-        Response HandleRequest(StringRequest&& req);
-
         template <typename Body, typename Allocator, typename Send>
         void operator()(http::request<Body, http::basic_fields<Allocator>>&& req, Send&& send) {
-
-            // отправляем обработку в базовую функцию подготовки ответа
-            send(HandleRequest(std::forward<decltype(req)>(req)));
+            // передаем обработку в парсер вместе с CallBack&&, чтобы в случае чего передать обработку запроса к api в api_strand_
+            handle_request(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         }
 
+        // включает выполнение автотаймера, выкидывает исключение, если таймер уже включен
+        RequestHandler& game_timer_start();
+        // включает выполнение автотаймера, выкидывает исключение, если таймер уже включен
+        RequestHandler& game_timer_start(std::chrono::milliseconds period);
+        // выключает выполнение автотаймера, выкидывает исключение, если таймер уже выключен
+        RequestHandler& game_timer_stop();
+
     private:
+        Strand api_strand_;
+        detail::Arguments arguments_;
+        
+        std::shared_ptr<res::ResourceHandler> resource_ = nullptr;
+        std::shared_ptr<game::GameHandler> game_ = nullptr;
+        std::shared_ptr<game::GameTimer> timer_ = nullptr;
 
-        model::Game& game_;
-        res::ResourceHandler& resource_;
+        bool timer_enable_ = false;              // флаг активации таймера автоизменения состояния
+        bool test_enable_ = false;               // флаг доступа тест-системы к ресурсам и api
 
-        // ------------------------------ блок работы с обычными get и head запросами -------------------
+        // базовая функция активации всех элементов вызываемая в конструкторе по переданным параметрам
+        RequestHandler& configuration_pipeline();
+        
+        // ------------------------------ блок работы с запросами к static data -------------------------
 
         // возвращает запрошенный документ
-        Response MainFileBodyResponse(StringRequest&& req, const resource_handler::ResourcePtr& file_path);
+        Response static_file_body_response(StringRequest&& req, const resource_handler::ResourcePtr& file_path);
         // возвращает index.html основной страницы
-        Response MainRootIndexResponse(StringRequest&& req);
+        Response static_root_index_response(StringRequest&& req);
         // базовый ответ 404 - not found
-        Response MainNotFoundResponse(StringRequest&& req);
+        Response static_not_found_response(StringRequest&& req);
         // базовый ответ 400 - bad request
-        Response MainBadRequestResponse(StringRequest&& req);
-        
+        Response static_bad_request_response(StringRequest&& req);
 
-        // ------------------------------ блок работы с api-get-запросами -------------------------------
+        // ------------------------------ внутренние обработчики тестовой системы -----------------------
 
-        // возвращает список доступных карт
-        Response ApiFindMapResponse(StringRequest&& req, std::string_view find_request_line);
-        // возвращает список доступных карт
-        Response ApiMapsListResponse(StringRequest&& req);
-        // возврат "mapNotFound"
-        Response ApiNotFoundResponse(StringRequest&& req);
-        // возврат "badRequest"
-        Response ApiBadRequestResponse(StringRequest&& req);
-        // Обработчик GET-запросов для Api игрового сервера
-        Response ApiGetMethodHandle(StringRequest&& req, std::string_view api_request_line);
+        // возвращает ответ на неверный запрос к дебаговым модулям
+        Response debug_common_fail_response(http_handler::StringRequest&& req, http::status status, 
+            std::string_view code, std::string_view message, [[maybe_unused]]std::string_view allow);
+        // возвращает ответ на запрос по удалению всех игровых сессий из обработчика
+        Response debug_sessions_reset_response(StringRequest&& req);
+        // возвращает ответ на запрос по установке флага случайного стартового расположения
+        Response debug_start_position_response(StringRequest&& req);
+        // возвращает ответ на запрос по установке флага случайного стартового расположения из конфига
+        Response debug_default_position_response(StringRequest&& req);
+        // возвращает ответ на отчёт о завершении работы тестовой системы
+        Response debug_test_frame_end_response(StringRequest&& req);
+
+        template <typename Function>
+        // авторизует и возвращает соответствующий ответ по обращению к дебагу
+        Response debug_autorization_impl(StringRequest&& req, Function&& func);
+
+        // ------------------------------ внутренние обработчики базовой системы ------------------------
+
+        // обработчик для запросов к статическим данным
+        Response handle_static_request(StringRequest&& req);
+        // обработчик для запросов к api-игрового сервера
+        Response handle_api_request(StringRequest&& req, std::string_view api_request_line);
+        // обработчик для конфигурационных запросов от тестовой системы
+        Response handle_test_request(StringRequest&& req, std::string_view api_request_line);
+
+        // ------------------------------ блок парсинга и базовой обработки -----------------------------
 
         template <typename Iterator>
-        std::string RequestTargetParser(Iterator begin, Iterator end);
-
-        // базовый парсер запросов
-        Response RequestParser(StringRequest&& req);
+        std::string parse_target(Iterator begin, Iterator end);
+        template <typename Send>
+        void handle_request(StringRequest&& req, Send&& send);
     };
 
+    template <typename Function>
+    Response RequestHandler::debug_autorization_impl(StringRequest&& req, Function&& func) {
+        // проверяем корректность метода запроса
+        if (req.method_string() != http_handler::Method::POST) {
+            // если у нас не POST-запрос, то кидаем отбойник
+            return debug_common_fail_response(std::move(req), http::status::method_not_allowed,
+                "invalidMethod", "Request method not allowed", http_handler::Method::POST);
+        }
+
+        // ищем тушку авторизации среди хеддеров запроса
+        auto auth_iter = req.find("Authorization");
+        if (auth_iter == req.end()) {
+            // если нет тушки по авторизации, тогда кидаем отбойник
+            return debug_common_fail_response(std::move(req), http::status::unauthorized, 
+                "invalidToken"sv, "Authorization header is missing"sv, ""sv);
+        }
+
+        // из тушки запроса получаем строку
+        // так как строка должна иметь строгий вид Bearer <токен>, то мы легко можем распарсить её
+        auto auth_reparse = game_handler::detail::BearerParser({ auth_iter->value().begin(), auth_iter->value().end() });
+
+        // если полученный токен не равен ни статическому, ни сгенерированному паролю
+        if (!auth_reparse && auth_reparse.value() != __DEBUG_REQUEST_AUTORIZATION_PASSWORD__) {
+            // если нет строки Bearer, или она корявая, или токен пустой, то кидаем отбойник
+            return debug_common_fail_response(std::move(req), http::status::unauthorized,
+                "invalidToken"sv, "Authorization header is missing"sv, ""sv);
+        }
+
+        // вызываем полученный обработчик
+        return func(std::move(req));
+    }
     template <typename Iterator>
-    std::string RequestHandler::RequestTargetParser(Iterator begin, Iterator end) {
+    std::string RequestHandler::parse_target(Iterator begin, Iterator end) {
 
         std::string result = ""s;                // строка с результатом работы
         bool IsASCII = false;                    // если появится ASCII-код
@@ -91,6 +145,9 @@ namespace http_handler {
                 if (*it == '%') {
                     IsASCII = true;              // подымаем флаг
                     ascii_code += *it;           // записываем элемент в символ
+                }
+                else if (*it == '+') {
+                    result += ' ';               // для корректной обработки запроса file%20with+spaces
                 }
                 else {
                     result += *it;
@@ -117,6 +174,67 @@ namespace http_handler {
         }
 
         return result;
+    }
+    template <typename Send>
+    void RequestHandler::handle_request(StringRequest&& req, Send&& send) {
+
+        // либо строка содержит только "api", либо имеет продолжение вида "api/"
+        if (req.target().substr(0, 4) == "/api"sv && req.target().size() == 4
+            || req.target().substr(0, 5) == "/api/"sv) {
+
+            // создаём лямбду с шароварным указателем на экземпляр класса (экземпляр должен быть в куче, иначе все упадет!)
+            // + Callback&&, плюс реквест. Чтобы не создавать экземпляр реквеста (лямбда по дефолту преобразует в const Type
+            // в std::forward указываем конкретный тип и задаем его "mutable"
+            auto handle = [self = shared_from_this(), send, request = std::forward<StringRequest&&>(req)]() mutable {
+
+                try {
+                    // Этот assert не выстрелит, так как лямбда-функция будет выполняться внутри strand
+                    assert(self->api_strand_.running_in_this_thread());
+                    return send(self->handle_api_request(std::forward<StringRequest&&>(request),
+                        { request.target().begin() + 4, request.target().end() }));
+                }
+                catch (...) {
+                    send(self->static_bad_request_response(std::forward<StringRequest&&>(request)));
+                }
+            };
+            
+            // важно не забыть задиспатчить всё что происходит в стренде. по сути похоже на футур
+            return net::dispatch(api_strand_, handle);
+        }
+
+        // либо строка содержит только "test_frame", либо имеет продолжение вида "test_frame/"
+        else if (req.target().substr(0, 11) == "/test_frame"sv && req.target().size() == 11
+            || req.target().substr(0, 12) == "/test_frame/"sv) {
+
+            if (test_enable_) {
+                // создаём лямбду с шароварным указателем на экземпляр класса (экземпляр должен быть в куче, иначе все упадет!)
+                // + Callback&&, плюс реквест. Чтобы не создавать экземпляр реквеста (лямбда по дефолту преобразует в const Type
+                // в std::forward указываем конкретный тип и задаем его "mutable"
+                auto handle = [self = shared_from_this(), send, request = std::forward<StringRequest&&>(req)]() mutable {
+
+                    try {
+                        // Этот assert не выстрелит, так как лямбда-функция будет выполняться внутри strand
+                        assert(self->api_strand_.running_in_this_thread());
+                        return send(self->handle_test_request(std::forward<StringRequest&&>(request),
+                            { request.target().begin() + 11, request.target().end() }));
+                    }
+                    catch (...) {
+                        send(self->static_bad_request_response(std::forward<StringRequest&&>(request)));
+                    }
+                };
+
+                // важно не забыть задиспатчить всё что происходит в стренде. по сути похоже на футур
+                return net::dispatch(api_strand_, handle);
+            }
+
+            // если тестовая система не заявлена в конфигурации и не поднят её флаг, то доступ закрыт
+            return send(debug_common_fail_response(std::move(req), http::status::bad_request, "badRequest"sv, "Invalid endpoint"sv, ""sv));
+        }
+
+        else {
+            // если обращение не к api, то уходим в обработку запросов к статическим данным
+            return send(handle_static_request(std::move(req)));
+        }
     }
 
 }  // namespace http_handler

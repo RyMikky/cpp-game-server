@@ -1,0 +1,4 @@
+{
+   "code": "invalidMethod", 
+   "message": "Invalid method"
+} 

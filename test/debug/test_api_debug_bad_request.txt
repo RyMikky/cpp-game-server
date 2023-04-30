@@ -1,0 +1,4 @@
+{
+   "code": "badRequest",
+   "message": "Invalid endpoint"
+} 

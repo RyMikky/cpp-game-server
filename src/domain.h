@@ -1,18 +1,23 @@
+п»ї// Р±Р°Р·РѕРІС‹Р№ РёРЅРєР»СЋРґ РѕР±СЉРµРґРёРЅСЏСЋС‰РёР№ СЂР°РЅС‹Рµ С‚РёРїС‹ РґР°РЅРЅС‹С… РїСЂРёРјРµРЅСЏРµРјС‹Рµ РїРѕ РІСЃРµР№ РїСЂРѕРіСЂР°РјРјРµ
+// С‚СЂРµР±СѓРµС‚СЃСЏ РґР»СЏ СЂР°Р±РѕС‚С‹ СЃРµСЂРІРµСЂР°, РѕР±СЂР°Р±РѕС‚С‡РёРєР° Р·Р°РїСЂРѕСЃРѕРІ, РѕР±СЂР°Р±РѕС‚С‡РёРєР° РёРіСЂС‹ Рё РµС‘ СЃРѕСЃС‚РѕСЏРЅРёР№
+
 #pragma once
 
 #include "sdk.h"
-// boost.beast будет использовать std::string_view вместо boost::string_view
+#include "model.h"
+#include "player.h"
+// boost.beast Р±СѓРґРµС‚ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ std::string_view РІРјРµСЃС‚Рѕ boost::string_view
 #define BOOST_BEAST_USE_STD_STRING_VIEW
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/strand.hpp>
+
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 
-#include "boost_json.h"
-#include "model.h"
 
 #include <unordered_map>
+#include <string_view>
 #include <filesystem>
 #include <variant>
 #include <optional>
@@ -21,19 +26,18 @@
 
 using namespace std::literals;
 
-namespace http_domain {
-
-    namespace beast = boost::beast;
-    namespace http = beast::http;
-    namespace fs = std::filesystem;
-
-} // namespace http_domain
-
 namespace http_handler {
 
+    namespace fs = std::filesystem;
     namespace beast = boost::beast;
     namespace http = beast::http;
     namespace sys = boost::system;
+    namespace net = boost::asio;
+
+    // РїР°СЂРѕР»СЊ РґР»СЏ С‚РµСЃС‚РѕРІРѕР№ СЃРёСЃС‚РµРјС‹ РґР»СЏ РѕР±СЂР°Р±РѕС‚РєРё Р·Р°РїСЂРѕСЃРѕРІ РёР· С„СЂРµР№РјР° РїСЂРѕРІРµСЂРєРё РїРѕ СѓСЃС‚Р°РЅРѕРІРєРµ СЂР°Р·Р»РёС‡РЅС‹С… СЃРѕСЃС‚РѕСЏРЅРёР№ РёРіСЂРѕРІРѕР№ СЃРёСЃС‚РµРјС‹
+    const std::string __DEBUG_REQUEST_AUTORIZATION_PASSWORD__ = "wCp74sDSs12-D7Er4+471cAwdXzV4q1Y"s;
+
+    using Strand = net::strand<net::io_context::executor_type>;
 
     static const std::unordered_map<std::string, char> __ASCII_CODE_TO_CHAR__ = {
         {"%20", ' '}, {"%21", '!'}, {"%22", '\"'}, {"%23", '#'}, {"%24", '$'}, {"%25", '%'}, {"%26", '&'}, {"%27", '\''}, {"%28", '('}, {"%29", ')'},
@@ -41,13 +45,13 @@ namespace http_handler {
         {"%3d", '='}, {"%3e", '>'}, {"%3f", '?'}, {"%40", '@'}, {"%5b", '['}, {"%5c", '\\'}, {"%5d", ']'}, {"%5e", '^'}, {"%5f", '_'}
     };
 
-    // Запрос, тело которого представлено в виде строки
+    // Р—Р°РїСЂРѕСЃ, С‚РµР»Рѕ РєРѕС‚РѕСЂРѕРіРѕ РїСЂРµРґСЃС‚Р°РІР»РµРЅРѕ РІ РІРёРґРµ СЃС‚СЂРѕРєРё
     using StringRequest = http::request<http::string_body>;
-    // Ответ, тело которого представлено в виде строки
+    // РћС‚РІРµС‚, С‚РµР»Рѕ РєРѕС‚РѕСЂРѕРіРѕ РїСЂРµРґСЃС‚Р°РІР»РµРЅРѕ РІ РІРёРґРµ СЃС‚СЂРѕРєРё
     using StringResponse = http::response<http::string_body>;
-    // Ответ, тело которого представленно в виде файла
+    // РћС‚РІРµС‚, С‚РµР»Рѕ РєРѕС‚РѕСЂРѕРіРѕ РїСЂРµРґСЃС‚Р°РІР»РµРЅРЅРѕ РІ РІРёРґРµ С„Р°Р№Р»Р°
     using FileResponse = http::response<http::file_body>;
-    // Варианты ответов на запросы
+    // Р’Р°СЂРёР°РЅС‚С‹ РѕС‚РІРµС‚РѕРІ РЅР° Р·Р°РїСЂРѕСЃС‹
     using Response = std::variant<std::monostate, StringResponse, FileResponse>;
 
 #define IS_FILE_RESPONSE(response) std::holds_alternative<http_handler::FileResponse>(response) 
@@ -55,21 +59,29 @@ namespace http_handler {
 
     struct ContentType {
         ContentType() = delete;
-        constexpr static std::string_view TEXT_HTML = "text/html"sv;                  // для .htm, .html
-        constexpr static std::string_view TEXT_CSS = "text/css"sv;                    // для .css
-        constexpr static std::string_view TEXT_TXT = "text/plain"sv;                  // для .txt
-        constexpr static std::string_view TEXT_JS = "text/javascript"sv;              // для .js
-        constexpr static std::string_view APP_JSON = "application/json"sv;            // для .json
-        constexpr static std::string_view APP_XML = "application/xml"sv;              // для .xml
-        constexpr static std::string_view IMAGE_PNG = "image/png"sv;                  // для .png
-        constexpr static std::string_view IMAGE_JPEG = "image/jpeg"sv;                // для .jpg, .jpe, .jpeg
-        constexpr static std::string_view IMAGE_GIF = "image/gif"sv;                  // для .gif
-        constexpr static std::string_view IMAGE_BMP = "image/bmp"sv;                  // для .bmp
-        constexpr static std::string_view IMAGE_ICO = "image/vnd.microsoft.icon"sv;   // для .ico
-        constexpr static std::string_view IMAGE_TIFF = "image/tiff"sv;                // для .tif, .tiff
-        constexpr static std::string_view IMAGE_SVG = "image/svg+xml"sv;              // для .svg, .svgz
-        constexpr static std::string_view AUDIO_MPEG = "audio/mpeg"sv;                // для .mp3
-        constexpr static std::string_view APP_UNKNOW = "application/octet-stream"sv;  // для .unknow
+        constexpr static std::string_view TEXT_HTML = "text/html"sv;                  // РґР»СЏ .htm, .html
+        constexpr static std::string_view TEXT_CSS = "text/css"sv;                    // РґР»СЏ .css
+        constexpr static std::string_view TEXT_TXT = "text/plain"sv;                  // РґР»СЏ .txt
+        constexpr static std::string_view TEXT_JS = "text/javascript"sv;              // РґР»СЏ .js
+        constexpr static std::string_view APP_JSON = "application/json"sv;            // РґР»СЏ .json
+        constexpr static std::string_view APP_XML = "application/xml"sv;              // РґР»СЏ .xml
+        constexpr static std::string_view IMAGE_PNG = "image/png"sv;                  // РґР»СЏ .png
+        constexpr static std::string_view IMAGE_JPEG = "image/jpeg"sv;                // РґР»СЏ .jpg, .jpe, .jpeg
+        constexpr static std::string_view IMAGE_GIF = "image/gif"sv;                  // РґР»СЏ .gif
+        constexpr static std::string_view IMAGE_BMP = "image/bmp"sv;                  // РґР»СЏ .bmp
+        constexpr static std::string_view IMAGE_ICO = "image/vnd.microsoft.icon"sv;   // РґР»СЏ .ico
+        constexpr static std::string_view IMAGE_TIFF = "image/tiff"sv;                // РґР»СЏ .tif, .tiff
+        constexpr static std::string_view IMAGE_SVG = "image/svg+xml"sv;              // РґР»СЏ .svg, .svgz
+        constexpr static std::string_view AUDIO_MPEG = "audio/mpeg"sv;                // РґР»СЏ .mp3
+        constexpr static std::string_view APP_UNKNOW = "application/octet-stream"sv;  // РґР»СЏ .unknow
+    };
+
+    struct Method {
+        Method() = delete;
+
+        constexpr static std::string_view GET = "GET"sv;
+        constexpr static std::string_view HEAD = "HEAD"sv;
+        constexpr static std::string_view POST = "POST"sv;
     };
 
 } // namespace http_handler
@@ -88,9 +100,36 @@ namespace resource_handler {
 
     using ResourcePtr = ResourceItem*;
 
-    // базовый массив данных в виде "название файла / путь к файлу"
+    // Р±Р°Р·РѕРІС‹Р№ РјР°СЃСЃРёРІ РґР°РЅРЅС‹С… РІ РІРёРґРµ "РЅР°Р·РІР°РЅРёРµ С„Р°Р№Р»Р° / РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ"
     using FileIndexNameToPath = std::unordered_map<std::string_view, ResourcePtr>;
-    // базовый массив данных в виде "название файла / путь к файлу"
+    // Р±Р°Р·РѕРІС‹Р№ РјР°СЃСЃРёРІ РґР°РЅРЅС‹С… РІ РІРёРґРµ "РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ / РЅР°Р·РІР°РЅРёРµ С„Р°Р№Р»Р°"
     using FileIndexPathToName = std::unordered_map<std::string_view, ResourcePtr>;
 
 } // namespace resource_handler
+
+namespace game_handler {
+
+    class TokenHasher {
+    public:
+        std::size_t operator()(const Token& token) const noexcept {
+            return _hasher(*token);
+        }
+    private:
+        std::hash<std::string> _hasher;
+    };
+
+    class TokenPtrHasher {
+    public:
+        std::size_t operator()(const Token* token) const noexcept {
+            return _hasher(*(*token));
+        }
+    private:
+        std::hash<std::string> _hasher;
+    };
+
+    using SessionPlayers = std::unordered_map<const Token*, Player, TokenPtrHasher>;
+    using SessionMapper = std::unordered_map<PosPtr, const Token*, PosPtrHasher>;
+
+    using SPIterator = std::unordered_map<const game_handler::Token* const, game_handler::Player>::const_iterator;
+ 
+} // namespace game_handler
