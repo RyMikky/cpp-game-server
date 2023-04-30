@@ -15,8 +15,6 @@ using namespace std::literals;
 namespace net = boost::asio;
 namespace sys = boost::system;
 
-static logger_handler::LoggerHandler __LOGGER__{std::cout};
-
 namespace {
 
 // Запускает функцию fn на n потоках, включая текущий
@@ -45,6 +43,9 @@ int main(int argc, const char* argv[]) {
     }
 
     try {
+        // 0.1. Инициализируем буст-логгер
+        logger_handler::detail::BoostLogBaseSetup(std::cout);
+
         // 1. Загружаем карту из файла и построить модель игры
         model::Game game = json_loader::LoadGame(argv[1]);
 
@@ -60,7 +61,8 @@ int main(int argc, const char* argv[]) {
         signals.async_wait([&ioc](const sys::error_code& ec, [[maybe_unused]] int signal_number) {
             if (!ec) {
                 ioc.stop();
-                __LOGGER__.LogShutdown();
+                logger_handler::LogShutdown();
+                //__LOGGER__.LogShutdown();
             }
             });
 
@@ -70,7 +72,7 @@ int main(int argc, const char* argv[]) {
         // 6. Запустить обработчик HTTP-запросов, делегируя их обработчику запросов
         const auto address = net::ip::make_address("0.0.0.0");
         constexpr net::ip::port_type port = 8080;
-        http_server::ServeHttp(ioc, {address, port}, __LOGGER__, [&resource_handler](auto&& req, auto&& send) {
+        http_server::ServeHttp(ioc, {address, port}, [&resource_handler](auto&& req, auto&& send) {
             resource_handler(std::forward<decltype(req)>(req), std::forward<decltype(send)>(send));
         });
 
@@ -83,7 +85,8 @@ int main(int argc, const char* argv[]) {
         });
 
     } catch (const std::exception& ex) {
-        __LOGGER__.LogException(ex);
+        logger_handler::LogException(ex);
+        //__LOGGER__.LogException(ex);
         //std::cerr << ex.what() << std::endl;
         return EXIT_FAILURE;
     }
