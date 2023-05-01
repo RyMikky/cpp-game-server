@@ -1,18 +1,18 @@
-#pragma once
+п»ї#pragma once
 
 #include <string>
 
 namespace detail {
 
     struct Arguments {
-        bool show_help_list = false;                      // флаг показа листа с помощью
-        std::string config_json_path;                     // путь к конфигурационному файлу config.json
-        std::string static_content_path;                  // путь к статическим файлам web-сервера
-        bool test_frame_launch = false;                   // флаг запуска системы тестирования
-        std::string test_content_path;                    // путь к проверочным файлам системы тестирования
-        bool game_timer_launch = false;                   // флаг установки автотаймера системы управления игрой
-        std::string game_timer_period;                    // период обновления автотаймера игрового состояния
-        bool randomize_spawn_points = false;              // флаг случайного размещения новых персонажей
+        bool show_help_list = false;                      // С„Р»Р°Рі РїРѕРєР°Р·Р° Р»РёСЃС‚Р° СЃ РїРѕРјРѕС‰СЊСЋ
+        std::string config_json_path;                     // РїСѓС‚СЊ Рє РєРѕРЅС„РёРіСѓСЂР°С†РёРѕРЅРЅРѕРјСѓ С„Р°Р№Р»Сѓ config.json
+        std::string static_content_path;                  // РїСѓС‚СЊ Рє СЃС‚Р°С‚РёС‡РµСЃРєРёРј С„Р°Р№Р»Р°Рј web-СЃРµСЂРІРµСЂР°
+        bool test_frame_launch = false;                   // С„Р»Р°Рі Р·Р°РїСѓСЃРєР° СЃРёСЃС‚РµРјС‹ С‚РµСЃС‚РёСЂРѕРІР°РЅРёСЏ
+        std::string test_content_path;                    // РїСѓС‚СЊ Рє РїСЂРѕРІРµСЂРѕС‡РЅС‹Рј С„Р°Р№Р»Р°Рј СЃРёСЃС‚РµРјС‹ С‚РµСЃС‚РёСЂРѕРІР°РЅРёСЏ
+        bool game_timer_launch = false;                   // С„Р»Р°Рі СѓСЃС‚Р°РЅРѕРІРєРё Р°РІС‚РѕС‚Р°Р№РјРµСЂР° СЃРёСЃС‚РµРјС‹ СѓРїСЂР°РІР»РµРЅРёСЏ РёРіСЂРѕР№
+        std::string game_timer_period;                    // РїРµСЂРёРѕРґ РѕР±РЅРѕРІР»РµРЅРёСЏ Р°РІС‚РѕС‚Р°Р№РјРµСЂР° РёРіСЂРѕРІРѕРіРѕ СЃРѕСЃС‚РѕСЏРЅРёСЏ
+        bool randomize_spawn_points = false;              // С„Р»Р°Рі СЃР»СѓС‡Р°Р№РЅРѕРіРѕ СЂР°Р·РјРµС‰РµРЅРёСЏ РЅРѕРІС‹С… РїРµСЂСЃРѕРЅР°Р¶РµР№
     };
 
     [[nodiscard]] Arguments ParseCommandLine(int argc, const char* const argv[]);

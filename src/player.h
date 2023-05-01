@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "token.h"
 
+#include <unordered_map>
+
 using namespace std::literals;
 
 namespace game_handler {
@@ -31,8 +33,16 @@ namespace game_handler {
         NORTH, SOUTH, WEST, EAST
     };
 
+    static const std::unordered_map<std::string, PlayerDirection> __PLAYER_DIRECTION_TYPE__ = {
+        {"U", PlayerDirection::NORTH}, {"D", PlayerDirection::SOUTH}, {"L", PlayerDirection::WEST}, {"R", PlayerDirection::EAST}
+    };
+
     enum class PlayerMove {
         UP, DOWN, LEFT, RIGHT, STAY, error
+    };
+
+    static const std::unordered_map<std::string, PlayerMove> __PLAYER_MOVE_TYPE__ = {
+        {"U", PlayerMove::UP}, {"D", PlayerMove::DOWN}, {"L", PlayerMove::LEFT}, {"R", PlayerMove::RIGHT}, {"", PlayerMove::STAY}
     };
 
     class Player {
@@ -48,38 +58,32 @@ namespace game_handler {
             : id_(id), name_(name), token_(token) {
         };
 
-        uint16_t get_player_id() const {
+        uint16_t GetPlayerId() const {
             return id_;
         }
-        std::string_view get_player_name() const {
+        std::string_view GetPlayerName() const {
             return name_;
         }
-        std::string_view get_player_token() const {
+        std::string_view GetPlayerToken() const {
             return **token_;
         }
 
-
-        Player& set_position(PlayerPosition&& position);
-        Player& set_position(double x, double y);
+        Player& SetPlayerPosition(PlayerPosition&& position);
+        Player& SetPlayerPosition(double x, double y);
         // рассчитывает новую позицию согласно времени
-        Player& update_position(double time);
+        Player& UpdatePlayerPosition(double time);
 
-        PlayerPosition get_position() const {
+        PlayerPosition GetPlayerPosition() const {
             return position_;
         }
-        Player& set_speed(PlayerSpeed&& speed);
-        Player& set_speed(double xV, double yV);
-        PlayerSpeed get_speed() const {
+        Player& SetPlayerSpeed(PlayerSpeed&& speed);
+        Player& SetPlayerSpeed(double xV, double yV);
+        PlayerSpeed GetPlayerSpeed() const {
             return speed_;
         }
 
-        Player& set_speed_direction(PlayerDirection&& direction);
-        PlayerDirection get_speed_direction() const {
-            return speed_dir_;
-        }
-
-        Player& set_direction(PlayerDirection&& direction);
-        PlayerDirection get_direction() const {
+        Player& SetPlayerDirection(PlayerDirection&& direction);
+        PlayerDirection GetPlayerDirection() const {
             return direction_;
         }
 
@@ -92,9 +96,7 @@ namespace game_handler {
 
         PlayerPosition position_ = { 0, 0 };
         PlayerSpeed speed_ = { 0, 0 };
-        PlayerDirection speed_dir_ = PlayerDirection::NORTH;
         PlayerDirection direction_ = PlayerDirection::NORTH;
-
     };
 
     using PlayerPtr = const Player*;
@@ -102,10 +104,10 @@ namespace game_handler {
     namespace detail {
 
         // парсит корректность строки направления движения
-        bool check_player_move(std::string_view move);
+        bool CheckPlayerMove(std::string_view move);
         // возвращет enum с направлением движения игрока
-        PlayerMove parse_player_move(std::string_view move);
+        PlayerMove ParsePlayerMove(std::string_view move);
 
     } // namespace detail
 
-} // namespace game_handler 
+} // namespace game_handler

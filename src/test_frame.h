@@ -118,11 +118,11 @@ namespace test {
 		bool TestApiTimeTickSet();                                          // запуск вышеизложенного сета
 
 		// конфигурирует запрос по заданным параметрам
-		http::request<http::string_body> make_test_request(resolver_endpoint& endpoint_, std::string_view target, http::verb method,
+		http::request<http::string_body> MakeTestRequest(resolver_endpoint& endpoint_, std::string_view target, http::verb method,
 			std::string_view user_agent, std::string_view content_type, std::string_view authorization, std::string_view body);
 
 		// првоеряет ответ на тестовый запрос согласно переданным параметрам
-		bool test_response_check(http::response<http::dynamic_body>&& res, std::string_view allow,
+		bool CheckServerResponse(http::response<http::dynamic_body>&& res, std::string_view allow,
 			std::string_view content_type, std::string_view no_cache, int result_code, std::string_view reference_file_path);
 
 	};

@@ -17,37 +17,41 @@ namespace resource_handler {
 
 		ResourceHandler& operator=(const ResourceHandler&) = delete;
 		ResourceHandler& operator=(ResourceHandler&&) = default;
+		// добавляет запись о документе в базовый вектор
+		void AddItem(ResourceItem&& item);
 
-		void add_resource_item(ResourceItem&& item);                                // добавляет запись о документе в базовый вектор
-
-		std::string_view get_root_directory_name() const {
+		std::string_view GetRootName() const {
 			return _resource_base[0]._name;
 		}
-		std::string_view get_root_directory_path() const {
+		std::string_view GetRootPath() const {
 			return _resource_base[0]._path;
 		}
+		// возвращает указатель на данные по имени файла
+		ResourcePtr GetItem(std::string_view file_name) const;
+		// возвращает указатель на данные по пути к файлу
+		ResourcePtr GetItem(const fs::path& file_path) const;
 
-		ResourcePtr get_resource_item(std::string_view file_name) const;            // возвращает указатель на данные по имени файла
-		ResourcePtr get_resource_item(const fs::path& file_path) const;             // возвращает указатель на данные по пути к файлу
-
-		bool in_database(std::string_view file_name) const;                         // возвращает подтверждение наличия файла
-		bool in_database(fs::path file_path) const;                                 // возвращает подтверждение наличия файла
+		// подтверждает наличие файла по имени
+		bool Count(std::string_view file_name) const;
+		// подтверждает наличие файла по пути
+		bool Count(fs::path file_path) const;
 
 	private:
-
 		std::deque<ResourceItem> _resource_base;
 
 		FileIndexNameToPath _name_to_data_ptr;
 		FileIndexPathToName _path_to_data_ptr;
 
-		void set_root_directory(const fs::path& file_path);
-		ResourceType parse_file_extension(std::string_view label);                  // парсит расширение файла и возвращает тип
-		void resource_index_recourse(const fs::path& file_path);                    // рекурентный проход по всем вложенным каталогам
+		void SetRoot(const fs::path& file_path);
+		// парсит расширение файла и возвращает тип
+		ResourceType ParseFileExtension(std::string_view label);
+		// рекурентный проход по всем вложенным каталогам
+		void ProcessRootTree(const fs::path& file_path);
 	};
 
 	namespace detail {
-
-		resource_handler::ResourceHandler LoadFiles(const char* file_path);         // базовый препроцессор-индексатор файлов
+		// базовый препроцессор-индексатор файлов
+		resource_handler::ResourceHandler LoadFiles(const char* file_path);
 
 	} // namespace detail
 

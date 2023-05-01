@@ -12,15 +12,15 @@ namespace resource_handler {
 			path_line.push_back('/');
 		}
 
-		set_root_directory(path_line);
+		SetRoot(path_line);
 	}
 
 	ResourceHandler::ResourceHandler(const fs::path& file_path) {
-		set_root_directory(file_path);
+		SetRoot(file_path);
 	}
 
 	// добавляет запись о документе в базовый вектор
-	void ResourceHandler::add_resource_item(ResourceItem&& item) {
+	void ResourceHandler::AddItem(ResourceItem&& item) {
 		// записываем данные в вектор и берем ссылку
 		auto& ref = _resource_base.emplace_back(std::move(item));
 		// также обновляем записи в словарях для быстрого поиска
@@ -29,24 +29,26 @@ namespace resource_handler {
 	}
 
 	// возвращает указатель на данные по имени файла
-	ResourcePtr ResourceHandler::get_resource_item(std::string_view file_name) const {
-		return !in_database(file_name) ? nullptr : _name_to_data_ptr.at(file_name);
-	}
-	// возвращает указатель на данные по пути к файлу
-	ResourcePtr ResourceHandler::get_resource_item(const fs::path& file_path) const {
-		return !in_database(file_path) ? nullptr : _path_to_data_ptr.at(file_path.generic_string());
+	ResourcePtr ResourceHandler::GetItem(std::string_view file_name) const {
+		return !Count(file_name) ? nullptr : _name_to_data_ptr.at(file_name);
 	}
 
-	// возвращает подтверждение наличия файла
-	bool ResourceHandler::in_database(std::string_view file_name) const {
+	// возвращает указатель на данные по пути к файлу
+	ResourcePtr ResourceHandler::GetItem(const fs::path& file_path) const {
+		return !Count(file_path) ? nullptr : _path_to_data_ptr.at(file_path.generic_string());
+	}
+
+	// подтверждает наличие файла по имени
+	bool ResourceHandler::Count(std::string_view file_name) const {
 		return _name_to_data_ptr.count(file_name);
 	}	
-	// возвращает подтверждение наличия файла
-	bool ResourceHandler::in_database(fs::path file_path) const {
+
+	// подтверждает наличие файла по пути
+	bool ResourceHandler::Count(fs::path file_path) const {
 		return _path_to_data_ptr.count(file_path.generic_string());
 	}
 
-	void ResourceHandler::set_root_directory(const fs::path& file_path) {
+	void ResourceHandler::SetRoot(const fs::path& file_path) {
 		//  в данную функцию должен придти путь к основному руту с файлами
 		if (!fs::is_directory(file_path)) {
 			throw std::runtime_error("Incoming Path is not a RootFolder");
@@ -58,48 +60,37 @@ namespace resource_handler {
 		root._name = file_path.filename().string();
 		root._type = ResourceType::root;
 		// добавляем первую запись о руте
-		add_resource_item(std::move(root));
+		AddItem(std::move(root));
 		// запускаем рекурсию обхода дерева вложенных папок
-		resource_index_recourse(file_path);
+		ProcessRootTree(file_path);
 	}
 
 	// парсит расширение файла и возвращает тип
-	ResourceType ResourceHandler::parse_file_extension(std::string_view label) {
-		std::string labels = "";
+	ResourceType ResourceHandler::ParseFileExtension(std::string_view label) {
+		std::string extension = "";
 
+		// перебираем полученную строку задом на перед
 		for (auto it = label.rbegin(); it != label.rend(); it++) {
 			if (*it == '.') {
-				break;
+				break;                   // как только дошли до точки, то прекращаем цикл
 			}
-			labels += std::tolower(*it);
+			extension += std::tolower(*it);
 		}
 
-		std::reverse(labels.begin(), labels.end());
+		// реверсим строку обратно в нормальный вид
+		std::reverse(extension.begin(), extension.end());
 
-		if (labels == "html") return ResourceType::html;
-		if (labels == "htm") return ResourceType::htm;
-		if (labels == "css") return ResourceType::css;
-		if (labels == "txt") return ResourceType::txt;
-		if (labels == "json") return ResourceType::json;
-		if (labels == "js") return ResourceType::js;
-		if (labels == "xml") return ResourceType::xml;
-		if (labels == "png") return ResourceType::png;
-		if (labels == "jpg") return ResourceType::jpg;
-		if (labels == "jpe") return ResourceType::jpe;
-		if (labels == "jpeg") return ResourceType::jpeg;
-		if (labels == "gif") return ResourceType::gif;
-		if (labels == "bmp") return ResourceType::bmp;
-		if (labels == "ico") return ResourceType::ico;
-		if (labels == "tif") return ResourceType::tif;
-		if (labels == "tiff") return ResourceType::tiff;
-		if (labels == "svg") return ResourceType::svg;
-		if (labels == "svgz") return ResourceType::svgz;
-		if (labels == "mp3") return ResourceType::mp3;
-
-		return ResourceType::unknow;
+		// смотрим совпадение расширения файла в константной мапе
+		if (__FILES_EXTENSIONS__.count(extension)) {
+			return __FILES_EXTENSIONS__.at(extension);
+		}
+		else {
+			return ResourceType::unknow;
+		}
 	}
+
 	// рекурентный проход по всем вложенным каталогам
-	void ResourceHandler::resource_index_recourse(const fs::path& file_path) {
+	void ResourceHandler::ProcessRootTree(const fs::path& file_path) {
 
 		for (const fs::directory_entry& dir_entry
 			: fs::directory_iterator(file_path)) {
@@ -113,9 +104,9 @@ namespace resource_handler {
 				folder._name = dir_entry.path().filename().string();
 				folder._type = ResourceType::folder;
 				// добавляем запись о папке
-				add_resource_item(std::move(folder));
+				AddItem(std::move(folder));
 				// продолжаем рекурентный перебор
-				resource_index_recourse(dir_entry);
+				ProcessRootTree(dir_entry);
 
 			}
 			else if (dir_entry.is_regular_file())
@@ -124,9 +115,9 @@ namespace resource_handler {
 				resource_handler::ResourceItem file;
 				file._path = dir_entry.path().generic_string();
 				file._name = dir_entry.path().filename().string();
-				file._type = parse_file_extension(file._name);
+				file._type = ParseFileExtension(file._name);
 				// добавляем запись о файле
-				add_resource_item(std::move(file));
+				AddItem(std::move(file));
 			}
 		}
 	}

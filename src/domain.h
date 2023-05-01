@@ -92,6 +92,14 @@ namespace resource_handler {
         root, folder, html, htm, css, txt, json, js, xml, png, jpg, jpe, jpeg, gif, bmp, ico, tif, tiff, svg, svgz, mp3, unknow
     };
 
+    static const std::unordered_map<std::string, ResourceType> __FILES_EXTENSIONS__ = {
+        {"html", ResourceType::html}, {"htm", ResourceType::htm}, {"css", ResourceType::css}, {"txt", ResourceType::txt},
+        {"json", ResourceType::json}, {"js", ResourceType::js}, {"xml", ResourceType::xml}, {"png", ResourceType::png},
+        {"jpg", ResourceType::jpg}, {"jpe", ResourceType::jpe}, {"jpeg", ResourceType::jpeg}, {"gif", ResourceType::gif},
+        {"bmp", ResourceType::bmp}, {"ico", ResourceType::ico}, {"tif", ResourceType::tif}, {"tiff", ResourceType::tiff},
+        {"svg", ResourceType::svg}, {"svgz", ResourceType::svgz}, {"mp3", ResourceType::mp3}
+    };
+
     struct ResourceItem {
         std::string _name = "";
         std::string _path = "";
@@ -108,6 +116,9 @@ namespace resource_handler {
 } // namespace resource_handler
 
 namespace game_handler {
+
+    const double __ROAD_DELTA__ = 0.4;                     // дельта отступа от центра оси дороги
+    const int __MS_IN_ONE_SECOND__ = 1000;                 // миллисекунд в одной секунде
 
     class TokenHasher {
     public:

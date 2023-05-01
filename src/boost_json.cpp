@@ -3,33 +3,37 @@
 namespace json_detail {
 
 	// парсер входящей строки из текста в boost::json
-	json::value parse_text_to_json(std::string_view line) {
+	json::value ParseTextToJSON(std::string_view line) {
 		return json::parse(line.data());
 	}
+
 	// возвращает строковое представление json-словаря с информацией по конкретному аргументу
-	std::string get_debug_argument(std::string_view argument, std::string_view value) {
-		return json::serialize(detail::get_debug_argument(argument, value));
+	std::string GetDebugArgument(std::string_view argument, std::string_view value) {
+		return json::serialize(detail::GetDebugArgument(argument, value));
 	}
+
 	// возвращает строковое представление json-словаря с информацией по коду и сообщению о ошибке
-	std::string get_error_string(std::string_view code, std::string_view message) {
-		return json::serialize(detail::get_error_value(code, message));
+	std::string GetErrorString(std::string_view code, std::string_view message) {
+		return json::serialize(detail::GetErrorValue(code, message));
 	}
+
 	// возвращает строковое представление json-словаря с полной информацией по запрошенной карте
-	std::string get_map_info(const model::Map* data) {
+	std::string GetMapInfo(const model::Map* data) {
 
 		json::object result;          // базовый ресурс ответа
 
 		result.emplace("id", *data->GetId());
 		result.emplace("name", data->GetName());
 
-		result.emplace("roads", detail::get_map_roads(data));
-		result.emplace("buildings", detail::get_map_builds(data));
-		result.emplace("offices", detail::get_map_offices(data));
+		result.emplace("roads", detail::GetMapRoads(data));
+		result.emplace("buildings", detail::GetMapBuilds(data));
+		result.emplace("offices", detail::GetMapOffices(data));
 
 		return json::serialize(result);
 	}
+
 	// возвращает строковое представление json-массива с полной информацией по вектору карт игры
-	std::string get_map_list(const std::vector<model::Map>& maps) {
+	std::string GetMapsList(const std::vector<model::Map>& maps) {
 
 		json::array result;   // по условию требуется запихать в массив
 
@@ -48,46 +52,49 @@ namespace json_detail {
 	// ----------------- блок методов генерации тела ответов на запросы к api-сервера -----------------
 
 	// возвращает строкове предаставление json-словаря с информацией о новом загруженном игроке
-	std::string get_session_join_player(game_handler::PlayerPtr player) {
+	std::string GetSessionPlayerJoin(game_handler::PlayerPtr player) {
 		json::object result;          // базовый ресурс ответа
 
-		result.emplace("authToken", std::string(player->get_player_token()));
-		result.emplace("playerId", (int)player->get_player_id());
+		result.emplace("authToken", std::string(player->GetPlayerToken()));
+		result.emplace("playerId", (int)player->GetPlayerId());
 
 		return json::serialize(result);
 	}
+
 	// возвращает строковое представление json_словаря с информацией о всех игроках в указанной сессии
-	std::string get_session_players_list(game_handler::SPIterator begin, game_handler::SPIterator end) {
+	std::string GetSessionPlayersList(game_handler::SPIterator begin, game_handler::SPIterator end) {
 
 		json::object result;          // базовый ресурс ответа
 
 		for (game_handler::SPIterator it = begin; it != end; it++) {
 
 			result.emplace(
-				std::to_string(it->second.get_player_id()),
-				json::object{ {"name", it->second.get_player_name()} }
+				std::to_string(it->second.GetPlayerId()),
+				json::object{ {"name", it->second.GetPlayerName()} }
 			);
 		}
 
 		return json::serialize(result);
 	}
+
 	// возвращает строковое представление json_словаря с информацией о всех игроках в указанной сессии
-	std::string get_session_players_list(const game_handler::SessionPlayers& players) {
+	std::string GetSessionPlayersList(const game_handler::SessionPlayers& players) {
 
 		json::object result;          // базовый ресурс ответа
 
 		for (const auto& it : players) {
 
 			result.emplace(
-				std::to_string(it.second.get_player_id()),
-				json::object{ {"name", it.second.get_player_name()} }
+				std::to_string(it.second.GetPlayerId()),
+				json::object{ {"name", it.second.GetPlayerName()} }
 			);
 		}
 
 		return json::serialize(result);
 	}
+
 	// возвращает строковое представление json_словаря с информацией о состоянии в указанной сессии
-	std::string get_session_state_list(const game_handler::SessionPlayers& players) {
+	std::string GetSessionStateList(const game_handler::SessionPlayers& players) {
 
 		json::object players_list;                  // базовый словарь с данными
 
@@ -96,17 +103,17 @@ namespace json_detail {
 			json::object player_data;               // объект игрок в котором будут все данные
 
 			json::array pos {                       // данные по позиции
-				it.second.get_position().x_, 
-				it.second.get_position().y_ };
+				it.second.GetPlayerPosition().x_, 
+				it.second.GetPlayerPosition().y_ };
 
 			json::array speed{                      // данные по скорости
-				it.second.get_speed().xV_,
-				it.second.get_speed().yV_ };
+				it.second.GetPlayerSpeed().xV_,
+				it.second.GetPlayerSpeed().yV_ };
 
 			player_data.emplace("pos", pos);
 			player_data.emplace("speed", speed);
 
-			switch (it.second.get_direction())
+			switch (it.second.GetPlayerDirection())
 			{
 			default:
 				case game_handler::PlayerDirection::NORTH:
@@ -125,7 +132,7 @@ namespace json_detail {
 			}
 			
 			players_list.emplace(
-				std::to_string(it.second.get_player_id()), player_data);
+				std::to_string(it.second.GetPlayerId()), player_data);
 		}
 
 		return json::serialize(json::object{ {"players", players_list} });
@@ -134,21 +141,23 @@ namespace json_detail {
 	namespace detail {
 
 		// возвращает json-словарь с информацией по конкретному аргументу
-		json::value get_debug_argument(std::string_view argument, std::string_view value) {
+		json::value GetDebugArgument(std::string_view argument, std::string_view value) {
 			return json::object{
 				{"argument", argument.data()},
 				{"value", value.data()}
 			};
 		}
+
 		// возвращает json-словарь с информацией по коду и сообщению о ошибке
-		json::value get_error_value(std::string_view code, std::string_view message) {
+		json::value GetErrorValue(std::string_view code, std::string_view message) {
 			return json::object{
 				{"code", code.data()},
 				{"message", message.data()}
 			};
 		}
+
 		// возвращает json-массив с информацией о офисах по запрошенной карте
-		json::array get_map_offices(const model::Map* data) {
+		json::array GetMapOffices(const model::Map* data) {
 			json::array result;
 
 			// бежим по массиву офисов
@@ -168,8 +177,9 @@ namespace json_detail {
 
 			return result;
 		}
+
 		// возвращает json-массив с информацией о строениях по запрошенной карте
-		json::array get_map_builds(const model::Map* data) {
+		json::array GetMapBuilds(const model::Map* data) {
 			json::array result;
 
 			// бежим по массиву строений
@@ -188,8 +198,9 @@ namespace json_detail {
 
 			return result;
 		}
+
 		// возвращает json-массив с информацией о дорогах по запрошенной карте
-		json::array get_map_roads(const model::Map* data) {
+		json::array GetMapRoads(const model::Map* data) {
 			json::array result;
 
 			// бежим по массиву дорог

@@ -12,18 +12,18 @@ namespace json_loader {
 	namespace detail {
 
 		// парсер элементов карты - здания
-		void parse_map_buildings_data(model::Map& map, json::value&& builds);
+		void ParseMapBuildingsData(model::Map& map, json::value&& builds);
 		// парсер элементов карты - офисы
-		void parse_map_offices_data(model::Map& map, json::value&& offices);
+		void ParseMapOfficesData(model::Map& map, json::value&& offices);
 		// парсер элементов карты - дороги
-		void parse_map_roads_data(model::Map& map, json::value&& roads);
+		void ParseMapRoadsData(model::Map& map, json::value&& roads);
 		// базовый парсер элементов полученного config.json
-		model::Game parse_game_maps_data(json::value&& maps);
+		model::Game ParseGameMapsData(json::value&& maps);
 		// базовый парсер элементов полученного config.json, вместе с базовой скоростью
-		model::Game parse_game_maps_data(json::value&& maps, double default_dog_speed);
+		model::Game ParseGameMapsData(json::value&& maps, double default_dog_speed);
 
 	} // namespace detail
 
-	model::Game load_game(const std::filesystem::path& json_path);
+	model::Game LoadGameConfiguration(const std::filesystem::path& json_path);
 
 }  // namespace json_loader

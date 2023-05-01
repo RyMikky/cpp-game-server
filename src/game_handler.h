@@ -4,24 +4,15 @@
 #include "json_loader.h"
 #include "boost_json.h"
 
-
 #include <vector>
 #include <memory>
 #include <chrono>
-//#include <thread>
 #include <mutex>
-//#include <numeric>
 #include <optional>
-//#include <variant>
-//#include <execution>
-//#include <filesystem>
 #include <functional>
 #include <unordered_map>
 
 namespace game_handler {
-
-	// дельта отступа от центра оси дороги
-	const double __ROAD_DELTA__ = 0.4;
 
 	namespace fs = std::filesystem;
 	namespace json = boost::json;
@@ -46,13 +37,13 @@ namespace game_handler {
 		GameTimer& operator=(GameTimer&&) = default;
 
 		// запускает выполнение таймера
-		GameTimer& start_execution();
+		GameTimer& Start();
 		// останавливает выполнение таймера
-		GameTimer& stop_execution();
+		GameTimer& Stop();
 		// назначает новый временной интервал таймера
-		GameTimer& set_period(std::chrono::milliseconds period);
+		GameTimer& SetPeriod(std::chrono::milliseconds period);
 		// назначение новой функции для выполнения по таймеру
-		GameTimer& set_execution_function(Function&& function);
+		GameTimer& SetFunction(Function&& function);
 
 	private:
 		http_handler::Strand& api_strand_;
@@ -62,7 +53,7 @@ namespace game_handler {
 
 		bool execution_ = false;
 		// основная имплементация выполнения таймера
-		void execution_impl(sys::error_code ec);
+		void ExecutionImpl(sys::error_code ec);
 	};
 
 	// класс-обработчик текущей игровой сессии
@@ -73,28 +64,28 @@ namespace game_handler {
 			: game_handler_(handler), session_game_map_(map), players_id_(max_players) {
 		}
 		GameSession(GameHandler& handler, const model::Map* map, size_t max_players, bool start_random_position)
-			: game_handler_(handler), session_game_map_(map), players_id_(max_players), start_random_position_(start_random_position) {
+			: game_handler_(handler), session_game_map_(map), players_id_(max_players), random_start_position_(start_random_position) {
 		}
 	protected:
 
 		// задаёт флаг случайной позиции для старта новых игроков
-		GameSession& set_start_random_position(bool start_random_position);
+		GameSession& SetRandomStartPosition(bool random_start_position);
 		// добавляет нового игрока на случайное место на случайной дороге на карте
-		Player* add_new_player(std::string_view name);
+		Player* AddPlayer(std::string_view name);
 		// вернуть указатель на игрока в сессии по токену
-		Player* get_player_by_token(const Token* token);
+		Player* GetPlayer(const Token* token);
 
 		// удалить игрока из игровой сессии
-		bool remove_player(const Token* token);
+		bool RemovePlayer(const Token* token);
 		// обновляет состояние игры с заданным временем в миллисекундах
-		bool update_state(int time);
+		bool UpdateState(int time);
 		// метод добавляет скорость персонажу, вызывается из GameHandler::player_action_response_impl
-		bool move_player(const Token* token, PlayerMove move);
+		bool MovePlayer(const Token* token, PlayerMove move);
 		// отвечает есть ли в сессии свободное местечко
-		bool have_free_space();
+		bool CheckFreeSpace();
 		
 		// чекает стартовую позицию на предмет совпадения с другими игроками в сессии
-		const SessionPlayers& get_session_players() const {
+		const SessionPlayers& GetPlayers() const {
 			return session_players_;
 		}
 
@@ -117,15 +108,15 @@ namespace game_handler {
 		std::vector<bool> players_id_;
 		SessionPlayers session_players_;
 
-		bool start_random_position_ = true;
+		bool random_start_position_ = true;
 
 		// изменяет координаты игрока при движении параллельно дороге, на которой он стоит
-		bool player_parallel_moving_impl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
+		bool ParallelMovingImpl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
 		// изменяет координаты игрока при движении перпендикулярно дороге, на которой он стоит
-		bool player_cross_moving_impl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
+		bool CrossMovingImpl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
 
-		bool set_player_new_position(Player& player, double time);
-		bool start_position_check_impl(PlayerPosition& position);
+		bool UpdatePlayerPosition(Player& player, double time);
+		bool CheckStartPositionImpl(PlayerPosition& position);
 	};
 
 	class MapPtrHasher {
@@ -152,39 +143,39 @@ namespace game_handler {
 	public:
 		// отдаём создание игровой модели классу обработчику игры
 		explicit GameHandler(const fs::path& configuration)
-			: game_simple_(json_loader::load_game(configuration)) {
+			: game_simple_(json_loader::LoadGameConfiguration(configuration)) {
 		}
 
 		// Выполняет обновление всех открытых игровых сессий по времени
-		void session_time_update(int time);
+		void UpdateGameSessions(int time);
 		// Назначает флаг случайного размещения игроков на картах
-		void set_start_random_position(bool flag);
+		void SetRandomStartPosition(bool flag);
 		// Сбрасывает и удаляет все активные игровые сессии
-		void game_sessions_resset();
+		void ResetGameSessions();
 		
-		// Возвращает ответ на запрос по изменению состояния игровой сессии со временем
-		http_handler::Response session_time_update_response(http_handler::StringRequest&& req);
+		// Возвращает ответ на запрос по изменению состояния игровых сессий со временем
+		http_handler::Response SessionsUpdateResponse(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос о совершении действий персонажем
-		http_handler::Response player_action_response(http_handler::StringRequest&& req);
+		http_handler::Response PlayerActionResponse(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
-		http_handler::Response game_state_response(http_handler::StringRequest&& req);
+		http_handler::Response GameStateResponse(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос о списке игроков в данной сессии
-		http_handler::Response player_list_response(http_handler::StringRequest&& req);
+		http_handler::Response PlayersListResponse(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос по присоединению к игре
-		http_handler::Response join_game_response(http_handler::StringRequest&& req);
+		http_handler::Response JoinGameResponse(http_handler::StringRequest&& req);
 		// Возвращает ответ на запрос по поиску конкретной карты
-		http_handler::Response find_map_response(http_handler::StringRequest&& req, std::string_view find_request_line);
+		http_handler::Response FindMapResponse(http_handler::StringRequest&& req, std::string_view find_request_line);
 		// Возвращает ответ со списком загруженных карт
-		http_handler::Response map_list_response(http_handler::StringRequest&& req);
+		http_handler::Response MapsListResponse(http_handler::StringRequest&& req);
 
 	protected: // протектед блок доступен только friend class -у для обратной записи данных и получения уникальных токенов
 		/* 
 			Реверсивный метод, который вызывается из игровой сессии.
 			Служит для получения уникального токена при добавлении нового игрока.
 		*/
-		const Token* get_unique_token(std::shared_ptr<GameSession> session);
-		//boost::future<const Token*> get_unique_token(std::shared_ptr<GameSession>  session);
-		bool reset_token(std::string_view token);
+		const Token* GetUniqueToken(std::shared_ptr<GameSession> session);
+		// удаляет токен из базы
+		bool ResetToken(std::string_view token);
 
 	private:
 		model::Game game_simple_;
@@ -193,50 +184,50 @@ namespace game_handler {
 		GameMapInstance instances_;
 		GameTokenList tokens_list_;
 
-		bool start_random_position_ = false;             // флаг радндомной позиции игроков на старте
+		bool random_start_position_ = false;             // флаг радндомной позиции игроков на старте
 
-		const Token* get_unique_token_impl(std::shared_ptr<GameSession> session);
-		bool reset_token_impl(std::string_view token);
+		const Token* GetUniqueTokenImpl(std::shared_ptr<GameSession> session);
+		bool ResetTokenImpl(std::string_view token);
 
-		// Возвращает ответ на запрос по изменению состояния игровой сессии со временем
-		http_handler::Response session_time_update_response_impl(http_handler::StringRequest&& req);
+		// Возвращает ответ на запрос по изменению состояния игровых сессий со временем
+		http_handler::Response SessionsUpdateResponseImpl(http_handler::StringRequest&& req);
+		// Возвращает ответ на запрос о совершении действий персонажем
+		http_handler::Response PlayerActionResponseImpl(http_handler::StringRequest&& req, const Token* token);
 		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
-		http_handler::Response player_action_response_impl(http_handler::StringRequest&& req, const Token* token);
-		// Возвращает ответ на запрос о состоянии игроков в игровой сессии
-		http_handler::Response game_state_response_impl(http_handler::StringRequest&& req, const Token* token);
+		http_handler::Response GameStateResponseImpl(http_handler::StringRequest&& req, const Token* token);
 		// Возвращает ответ на запрос о списке игроков в данной сессии
-		http_handler::Response player_list_response_impl(http_handler::StringRequest&& req, const Token* token);
+		http_handler::Response PlayersListResponseImpl(http_handler::StringRequest&& req, const Token* token);
 		// Возвращает ответ, о успешном добавлении игрока в игровую сессию
-		http_handler::Response join_game_response_impl(http_handler::StringRequest&& req, json::value&& body, const model::Map* map);
+		http_handler::Response JoinGameResponseImpl(http_handler::StringRequest&& req, json::value&& body, const model::Map* map);
 		// Возвращает ответ, что запрошенный метод не разрешен, доступные указывается в аргументе allow
-		http_handler::Response method_not_allowed_impl(http_handler::StringRequest&& req, std::string_view allow);
+		http_handler::Response NotAllowedResponseImpl(http_handler::StringRequest&& req, std::string_view allow);
 
 		// Возвращает ответ на все варианты неверных и невалидных запросов
-		http_handler::Response common_fail_response_impl(http_handler::StringRequest&& req, 
+		http_handler::Response CommonFailResponseImpl(http_handler::StringRequest&& req, 
 			http::status status, std::string_view code, std::string_view message);
 
-		// метод проверяющий совпадение токена с предоставленным, если токен корректнен и есть в базе, то возвращается токен
+		// Проверяет полученный в запросе токен, если токен корректнен и есть в базе, то управление передается прилагаемому методу
 		template <typename Function>
-		http_handler::Response authorization_token_impl(http_handler::StringRequest&& req, Function&& func);
+		http_handler::Response PlayerAuthorizationImpl(http_handler::StringRequest&& req, Function&& func);
 		template <typename ...Methods>
 		// Возвращает ответ, что запрошенные методы не разрешены, доступный указывается в аргументе allow
-		http_handler::Response method_not_allowed_impl(http_handler::StringRequest&& req, Methods&& ...methods);
+		http_handler::Response NotAllowedResponseImpl(http_handler::StringRequest&& req, Methods&& ...methods);
 	};
 
 	namespace detail {
 
 		template<typename T1, typename T2>
-		std::string combine_methods(const T1& method_one, const T2& method_two) {
+		std::string CombineAllowedMethods(const T1& method_one, const T2& method_two) {
 			return std::string(method_one) + ", " + std::string(method_two);
 		}
 
 		template<typename T1, typename T2, typename... Args>
-		std::string combine_methods(const T1& method_one, const T2& method_two, Args&&... args) {
-			return std::string(method_one) + ", " + std::string(method_two) + ", " + combine_words(std::forward<Args>(args)...);
+		std::string CombineAllowedMethods(const T1& method_one, const T2& method_two, Args&&... args) {
+			return std::string(method_one) + ", " + std::string(method_two) + ", " + CombineAllowedMethods(std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		std::string combine_methods(Args&&... args) {
+		std::string CombineAllowedMethods(Args&&... args) {
 			std::string result;
 			bool first = true;
 			((result += (first ? "" : ", ") + std::string(std::forward<Args>(args)), first = false), ...);
@@ -244,21 +235,20 @@ namespace game_handler {
 		}
 
 		// округляет double -> int по математическим законам
-		int double_round(double value);
+		int RoundDoubleMathematic(double value);
 
-		std::optional<std::string> BearerParser(std::string&& auth_line);
+		std::optional<std::string> BearerParser(const std::string& auth_line);
 
 	} // namespace detail
 
+	// Проверяет полученный в запросе токен, если токен корректнен и есть в базе, то управление передается прилагаемому методу
 	template <typename Function>
-	http_handler::Response GameHandler::authorization_token_impl(http_handler::StringRequest&& req, Function&& func) {
+	http_handler::Response GameHandler::PlayerAuthorizationImpl(http_handler::StringRequest&& req, Function&& func) {
 		// ищем тушку авторизации среди хеддеров запроса
 		auto auth_iter = req.find("Authorization");
 		if (auth_iter == req.end()) {
 			// если нет тушки по авторизации, тогда кидаем отбойник
-			/*return unauthorized_response(std::move(req),
-				"invalidToken"sv, "Authorization header is missing"sv);*/
-			return common_fail_response_impl(std::move(req), http::status::unauthorized,
+			return CommonFailResponseImpl(std::move(req), http::status::unauthorized,
 				"invalidToken", "Authorization header is missing");
 		}
 
@@ -268,18 +258,14 @@ namespace game_handler {
 
 		if (!auth_reparse) {
 			// если нет строки Bearer, или она корявая, или токен пустой, то кидаем отбойник
-			/*return unauthorized_response(std::move(req),
-				"invalidToken"sv, "Authorization header is missing"sv);*/
-			return common_fail_response_impl(std::move(req), http::status::unauthorized,
+			return CommonFailResponseImpl(std::move(req), http::status::unauthorized,
 				"invalidToken", "Authorization header is missing");
 		}
 
 		Token token{ auth_reparse.value() }; // создаём быстро токен на основе запроса и ищем совпадение во внутреннем массиве
 		if (!tokens_list_.count(token)) {
 			// если заголовок Authorization содержит валидное значение токена, но в игре нет пользователя с таким токеном
-			/*return unauthorized_response(std::move(req),
-				"unknownToken"sv, "Player token has not been found"sv);*/
-			return common_fail_response_impl(std::move(req), http::status::unauthorized,
+			return CommonFailResponseImpl(std::move(req), http::status::unauthorized,
 				"unknownToken", "Player token has not been found");
 		}
 
@@ -289,13 +275,13 @@ namespace game_handler {
 
 	template <typename ...Methods>
 	// Возвращает ответ, что запрошенные методы не разрешены, доступный указывается в аргументе allow
-	http_handler::Response GameHandler::method_not_allowed_impl(http_handler::StringRequest&& req, Methods&& ...methods) {
+	http_handler::Response GameHandler::NotAllowedResponseImpl(http_handler::StringRequest&& req, Methods&& ...methods) {
 		http_handler::StringResponse response(http::status::method_not_allowed, req.version());
 		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
 		response.set(http::field::cache_control, "no-cache");
 		// собираюю строку сборщиком из detail
-		response.set(http::field::allow, detail::combine_methods(methods...));
-		response.body() = json_detail::get_error_string("invalidMethod"sv, "Invalid method"s);
+		response.set(http::field::allow, detail::CombineAllowedMethods(methods...));
+		response.body() = json_detail::GetErrorString("invalidMethod"sv, "Invalid method"s);
 
 		return response;
 	}

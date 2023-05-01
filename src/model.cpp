@@ -9,7 +9,7 @@ namespace model {
 
     using namespace std::literals;
 
-    int random_integer(int from, int to) {
+    int GetRandomInteger(int from, int to) {
 
         std::random_device rd;
         std::mt19937 gen(rd());
@@ -17,13 +17,13 @@ namespace model {
         return dis(gen);
     }
 
-    Point Road::get_random_position() const {
+    Point Road::GetRandomPosition() const {
         return IsHorizontal() ?
-            Point{ random_integer(
+            Point{ GetRandomInteger(
                 std::min(start_.x, end_.x),
                 std::max(start_.x, end_.x)), 
             start_.y } :
-            Point{ start_.x, random_integer(
+            Point{ start_.x, GetRandomInteger(
                 std::min(start_.y, end_.y),
                 std::max(start_.y, end_.y)) };
     }
@@ -43,8 +43,9 @@ namespace model {
             throw;
         }
     }
+
     // возвращает стартовую точку первой дороги на карте
-    Point Map::get_first_map_start_position() const {
+    Point Map::GetFirstRoadStartPosition() const {
         if (roads_.size() == 0) {
             // если дорог нет, тогда кидаем исключение, что у нас пусто в листе
             throw std::runtime_error("Map::get_first_map_start_position::Error::No_Roads_on_Map");
@@ -52,52 +53,11 @@ namespace model {
 
         return roads_[0].GetStart();
     }
-    // возвращает ссылку на дорогу по переданной позиции и направлению, или вертикальному или горизонтальному
-    const Road& Map::get_road_by_position(Point pos, bool vertical) const {
 
-        if (roads_.size() == 0) {
-            // если дорог нет, тогда кидаем исключение, что у нас пусто в листе
-            throw std::runtime_error("Map::get_road_by_position::Error::No_Roads_on_Map");
-        }
-
-        std::optional<const Road*> horizontal_road;            // заготовка под дорогу по горизонтали
-        std::optional<const Road*> vertical_road;              // заготовка под дорогу по вертикали 
-        
-        // дорога должна вернуться одна, в зависимости от переданного флага
-        for (const Road& road : roads_) {
-            // позиция так или иначе будет приведена к инту, значит чтобы понять на какой мы дороге должны совпасть парные координаты
-            bool x_compare = road.GetStart().x == pos.x && road.GetEnd().x == pos.x;              // совпадение по горизонтальной оси
-            bool y_compare = road.GetStart().y == pos.y && road.GetEnd().y == pos.y;              // совпадение по вертикальной оси
-
-            // если имеем совпадение по вертикальной оси, значит стоим на горизонтальной дороге
-            if (y_compare) horizontal_road.emplace(std::move(&road));
-            // если имеем совпадение по горизонтальной оси, значит стоим на вертикальной дороге
-            if (x_compare) vertical_road.emplace(std::move(&road));
-        }
-
-        // после перебора дорог, точно должны быть заполнен хотя бы один std::optional
-        if (horizontal_road && vertical_road) {
-            // если нашли две дороги (стоим на перекрестке), то возвращаем ту, куда смотрит и планирует идти игрок
-            return vertical ? *vertical_road.value() : *horizontal_road.value();
-        }
-        else {
-            if (horizontal_road) {
-                return *horizontal_road.value();
-            }
-            else if (vertical_road) {
-                return *vertical_road.value();
-            }
-            // иначе пойдём вниз и бросим исключение
-        }
-
-        // если мы так ничего и не нашли, также кидаем исключение, что будет сигналом о то, что что-то пошло не так
-        // по идее сюда попасть ну никак нельзя, так как все песели должны бегать по дорогам, и позиции должны передаваться
-        // так, чтобы оказаться на той или иной дороге, но мало ли что может случиться
-        throw std::runtime_error("Map::get_road_by_position::Error::No_Result_Road_By_Position");
-    }
-    // флаг нахождения точки на горизонтальной дороге
+    // метод возвращает указатель на горизонтальную дорогу по переданной позиции
+    // если позиция каким-то образом некорректна, то вернется nullptr
     // требуется передача позиции в формате модели с округлением к int
-    const Road* Map::stay_on_horizontal_road(Point pos) const {
+    const Road* Map::GetHorizontalRoad(Point pos) const {
 
         if (roads_.size() == 0) {
             // если дорог нет, тогда кидаем исключение, что у нас пусто в листе
@@ -123,9 +83,11 @@ namespace model {
 
         return nullptr;
     }
-    // флаг нахождения точки на вертикальной дороге
+
+    // метод возвращает указатель на вертикальную дорогу по переданной позиции
+    // если позиция каким-то образом некорректна, то вернется nullptr
     // требуется передача позиции в формате модели с округлением к int
-    const Road* Map::stay_on_vertical_road(Point pos) const {
+    const Road* Map::GetVerticalRoad(Point pos) const {
         if (roads_.size() == 0) {
             // если дорог нет, тогда кидаем исключение, что у нас пусто в листе
             throw std::runtime_error("Map::get_road_by_position::Error::No_Roads_on_Map");
@@ -152,9 +114,9 @@ namespace model {
     }
 
     // возвращает случайную дорого на карте
-    const Road& Map::get_random_road() const {
+    const Road& Map::GetRandomRoad() const {
         if (roads_.size() != 0) {
-            return roads_[random_integer(0, static_cast<int>(roads_.size() - 1))];
+            return roads_[GetRandomInteger(0, static_cast<int>(roads_.size() - 1))];
         }
         else {
 
@@ -168,7 +130,7 @@ namespace model {
     }
 
     // добавляет карту в игровую модель
-    void Game::add_map(Map map) {
+    void Game::AddMap(Map map) {
         const size_t index = maps_.size();
         if (auto [it, inserted] = map_id_to_index_.emplace(map.GetId(), index); !inserted) {
             throw std::invalid_argument("Map with id "s + *map.GetId() + " already exists"s);

@@ -1,4 +1,4 @@
-#include "options.h"
+п»ї#include "options.h"
 
 #include <boost/program_options.hpp>
 
@@ -27,17 +27,17 @@ namespace detail {
         po::store(po::parse_command_line(argc, argv, description_), variables_map_);
         po::notify(variables_map_);
 
-        // если не задан файл конфига кидаем исключение
+        // РµСЃР»Рё РЅРµ Р·Р°РґР°РЅ С„Р°Р№Р» РєРѕРЅС„РёРіР° РєРёРґР°РµРј РёСЃРєР»СЋС‡РµРЅРёРµ
         if (!variables_map_.contains("config-file"s)) {
             throw std::runtime_error("Config file have not been specified"s);
         }
 
-        // если не задан файл конфига кидаем исключение
+        // РµСЃР»Рё РЅРµ Р·Р°РґР°РЅ С„Р°Р№Р» РєРѕРЅС„РёРіР° РєРёРґР°РµРј РёСЃРєР»СЋС‡РµРЅРёРµ
         if (!variables_map_.contains("www-root"s)) {
             throw std::runtime_error("Static files directory have not been specified"s);
         }
 
-        // прочие необязательные флаги
+        // РїСЂРѕС‡РёРµ РЅРµРѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ С„Р»Р°РіРё
 
         if (variables_map_.contains("randomize-spawn-points"s)) {
             arguments_.randomize_spawn_points = true;

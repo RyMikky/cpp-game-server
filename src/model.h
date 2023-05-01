@@ -29,7 +29,7 @@ namespace model {
         Dimension dx, dy;
     };
 
-    int random_integer(int from, int to);
+    int GetRandomInteger(int from, int to);
 
     class Road {
         struct HorizontalTag {
@@ -69,7 +69,7 @@ namespace model {
             return end_;
         }
 
-        Point get_random_position() const;
+        Point GetRandomPosition() const;
 
     private:
         Point start_;
@@ -166,27 +166,27 @@ namespace model {
         }
         void AddOffice(Office office);
 
-        void set_dog_speed(double speed) {
+        void SetOnMapSpeed(double speed) {
             dog_speed_ = speed;
         }
-        double get_dog_speed() const {
+        double GetOnMapSpeed() const {
             return dog_speed_;
         }
         // возвращает случайную позицию на случайно выбранной дороге на карте
-        Point get_random_road_position() const {
-            return get_random_road().get_random_position();
+        Point GetRandomPosition() const {
+            return GetRandomRoad().GetRandomPosition();
         }
         // возвращает стартовую точку первой дороги на карте
-        Point get_first_map_start_position() const;
-        // возвращает ссылку на дорогу по переданной позиции и направлению, или вертикальному или горизонтальному
-        const Road& get_road_by_position(Point pos, bool vertical) const;
+        Point GetFirstRoadStartPosition() const;
 
-        // флаг нахождения точки на горизонтальной дороге
+        // метод возвращает указатель на горизонтальную дорогу по переданной позиции
+        // если позиция каким-то образом некорректна, то вернется nullptr
         // требуется передача позиции в формате модели с округлением к int
-        const Road* stay_on_horizontal_road(Point pos) const;
-        // флаг нахождения точки на вертикальной дороге
+        const Road* GetHorizontalRoad(Point pos) const;
+        // метод возвращает указатель на вертикальную дорогу по переданной позиции
+        // если позиция каким-то образом некорректна, то вернется nullptr
         // требуется передача позиции в формате модели с округлением к int
-        const Road* stay_on_vertical_road(Point pos) const;
+        const Road* GetVerticalRoad(Point pos) const;
 
     private:
         using OfficeIdToIndex = std::unordered_map<Office::Id, size_t, util::TaggedHasher<Office::Id>>;
@@ -201,7 +201,7 @@ namespace model {
         Offices offices_;
 
         // возвращает случайную дорого на карте
-        const Road& get_random_road() const;
+        const Road& GetRandomRoad() const;
     };
 
     class Game {
@@ -209,13 +209,13 @@ namespace model {
         using Maps = std::vector<Map>;
 
         // добавляет карту в игровую модель
-        void add_map(Map map);
+        void AddMap(Map map);
         // возвращает лист карт игровой модели
-        const Maps& get_maps() const noexcept {
+        const Maps& GetMaps() const noexcept {
             return maps_;
         }
         // ищет карту в игровой модели по id 
-        const Map* find_map(const Map::Id& id) const noexcept {
+        const Map* FindMap(const Map::Id& id) const noexcept {
             if (auto it = map_id_to_index_.find(id); it != map_id_to_index_.end()) {
                 return &maps_.at(it->second);
             }

@@ -58,7 +58,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/maps"sv, 
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/maps"sv, 
                 http::verb::get, BOOST_BEAST_VERSION_STRING, ""sv, ""sv, ""sv));
 
             // создаем объект ответа
@@ -68,7 +68,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, ""sv, 200, 
                 config_.root_ + "basic/test_api_maps.txt"));
 
@@ -96,7 +96,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/maps/map1"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/maps/map1"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, ""sv, ""sv, ""sv));
 
             // создаем объект ответа
@@ -106,7 +106,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, ""sv, 200, 
                 config_.root_ + "basic/test_api_map1.txt"));
 
@@ -133,7 +133,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/maps/town"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/maps/town"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, ""sv, ""sv, ""sv));
 
             // создаем объект ответа
@@ -143,7 +143,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, ""sv, 200, 
                 config_.root_ + "basic/test_api_town.txt"));
 
@@ -170,7 +170,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/maps/map15"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/maps/map15"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, ""sv, ""sv, ""sv));
 
             // создаем объект ответа
@@ -181,7 +181,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, ""sv, 404, 
                 config_.root_ + "basic/test_api_map_not_found.txt"));
 
@@ -208,7 +208,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v333/maps/map1"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v333/maps/map1"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, ""sv, ""sv, ""sv));
 
             // создаем объект ответа
@@ -219,7 +219,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, ""sv, 400, 
                 config_.root_ + "basic/test_api_bad_request.txt"));
 
@@ -287,7 +287,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"userName\": \"Scooby Doo\", \"mapId\": \"map1\"}"sv));
 
@@ -299,13 +299,13 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 200, ""));
 
             {
                 // дополнительная проверка непредсказуемых ответов (токен всегда будет разный)
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::parse_text_to_json(
+                auto server_resp = json_detail::ParseTextToJSON(
                     boost::beast::buffers_to_string(res.body().data()));
 
                 // првоеряем в ответе наличие строк о токене и айди
@@ -337,7 +337,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"userName\": \"Whelma Shnizel\", \"mapId\": \"map1\"}"sv));
 
@@ -349,13 +349,13 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 200, ""));
 
             {
                 // дополнительная проверка непредсказуемых ответов (токен всегда будет разный)
                 // загоняем ответ сервера из строки в JSON
-                auto server_resp = json_detail::parse_text_to_json(
+                auto server_resp = json_detail::ParseTextToJSON(
                     boost::beast::buffers_to_string(res.body().data()));
 
                 // првоеряем в ответе наличие строк о токене и айди
@@ -387,7 +387,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"mapId\": \"map1\"}"sv));
 
@@ -399,7 +399,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 400, 
                 config_.root_ + "login/test_api_game_login_miss_name_or_map.txt"));
 
@@ -426,7 +426,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"userName\": \"\", \"mapId\": \"map1\"}"sv));
 
@@ -438,7 +438,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 400,
                 config_.root_ + "login/test_api_game_login_invalid_name.txt"));
 
@@ -465,7 +465,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"userName\": \"Vasya\"}"sv));
 
@@ -477,7 +477,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 400,
                 config_.root_ + "login/test_api_game_login_miss_name_or_map.txt"));
 
@@ -504,7 +504,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"userName\": \"Vasya\", \"mapId\": \"map2412\"}"sv));
 
@@ -516,7 +516,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 404,
                 config_.root_ + "basic/test_api_map_not_found.txt"));
 
@@ -543,7 +543,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"userName\": \"Vasya\", \"mapId\": \'  invalid  \'}"sv));
 
@@ -555,7 +555,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 400,
                 config_.root_ + "login/test_api_game_login_invalid_argument.txt"));
 
@@ -582,7 +582,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"userName\": \"Scooby Doo\", \"mapId\": \"map1\"}"sv));
 
@@ -594,7 +594,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), "POST"sv,
+            assert(CheckServerResponse(std::move(res), "POST"sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 405,
                 config_.root_ + "login/test_api_game_login_invalid_method.txt"));
 
@@ -684,7 +684,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"userName\": \"Mega Pups\", \"mapId\": \"map1\"}"sv));
 
@@ -697,13 +697,13 @@ namespace test {
             boost::json::value server_resp;
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 200, ""));
 
             {
                 // дополнительная проверка непредсказуемых ответов (токен всегда будет разный)
                 // загоняем ответ сервера из строки в JSON
-                server_resp = json_detail::parse_text_to_json(
+                server_resp = json_detail::ParseTextToJSON(
                     boost::beast::buffers_to_string(res.body().data()));
 
                 // првоеряем в ответе наличие строк о токене и айди
@@ -740,7 +740,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/players"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/players"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer " + data.first, ""sv));
 
@@ -750,7 +750,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv, 
+            assert(CheckServerResponse(std::move(res), ""sv, 
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200, 
                 config_.root_ + "autho/test_api_players_list.txt"));
 
@@ -777,7 +777,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/players"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/players"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv, ""sv, ""sv));
 
             // создаем объект ответа
@@ -786,7 +786,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401, 
                 config_.root_ + "autho/test_api_authorization_missing.txt"));
 
@@ -813,7 +813,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/players"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/players"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer"sv, ""sv));
 
             // создаем объект ответа
@@ -822,7 +822,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
                 config_.root_ + "autho/test_api_authorization_missing.txt"));
 
@@ -849,7 +849,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/players"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/players"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv, 
                 "Cearer " + data.first, ""sv));
 
@@ -860,7 +860,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
                 config_.root_ + "autho/test_api_authorization_missing.txt"));
 
@@ -887,7 +887,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/players"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/players"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer 68f75asfdsffaa457a98f7v5d6z4f8f4"sv, ""sv));
 
@@ -897,7 +897,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
                 config_.root_ + "autho/test_api_token_not_found.txt"));
 
@@ -924,7 +924,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/players"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/players"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer " + data.first, ""sv));
 
@@ -935,7 +935,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), "GET, HEAD"sv,
+            assert(CheckServerResponse(std::move(res), "GET, HEAD"sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 405,
                 config_.root_ + "autho/test_api_players_list_invalid_method.txt"));
 
@@ -1020,7 +1020,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/test_frame/reset"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/test_frame/reset"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer " + config_.authorization_, ""sv));
 
             // создаем объект ответа
@@ -1029,7 +1029,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
                 config_.root_ + "debug/test_api_debug_data_clear.txt"));
 
@@ -1068,7 +1068,7 @@ namespace test {
             }
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/test_frame/position"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/test_frame/position"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer " + config_.authorization_, request_body));
 
             // создаем объект ответа
@@ -1077,7 +1077,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
                 config_.root_ + ref_file));
 
@@ -1104,7 +1104,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/test_frame/position/default"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/test_frame/position/default"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer " + config_.authorization_, ""sv));
 
             // создаем объект ответа
@@ -1113,7 +1113,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
                 config_.root_ + "debug/test_api_debug_start_position_default.txt"));
 
@@ -1140,7 +1140,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/test_frame/test_end"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/test_frame/test_end"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer " + config_.authorization_, ""sv));
 
             // создаем объект ответа
@@ -1149,7 +1149,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
                 config_.root_ + "debug/test_api_debug_test_end.txt"));
 
@@ -1176,7 +1176,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/test_frame/reset"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/test_frame/reset"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv, "Bearer " + config_.authorization_, ""sv));
 
             // создаем объект ответа
@@ -1185,7 +1185,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
                 config_.root_ + "debug/test_api_debug_bad_request.txt"));
 
@@ -1213,7 +1213,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"userName\": \"Scooby Doo\", \"mapId\": \"map1\"}"sv));
 
@@ -1225,7 +1225,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 200, ""));
 
             boost::json::value server_resp;
@@ -1233,7 +1233,7 @@ namespace test {
             {
                 // дополнительная проверка непредсказуемых ответов (токен всегда будет разный)
                 // загоняем ответ сервера из строки в JSON
-                server_resp = json_detail::parse_text_to_json(
+                server_resp = json_detail::ParseTextToJSON(
                     boost::beast::buffers_to_string(res.body().data()));
 
                 // првоеряем в ответе наличие строк о токене и айди
@@ -1270,7 +1270,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/join"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/join"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"userName\": \"Whelma Shnizel\", \"mapId\": \"map1\"}"sv));
 
@@ -1282,7 +1282,7 @@ namespace test {
             http::read(stream_, buffer, res);
 
             // проверяем полученный ответ
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no-cache"sv, 200, ""));
 
             boost::json::value server_resp;
@@ -1290,7 +1290,7 @@ namespace test {
             {
                 // дополнительная проверка непредсказуемых ответов (токен всегда будет разный)
                 // загоняем ответ сервера из строки в JSON
-                server_resp = json_detail::parse_text_to_json(
+                server_resp = json_detail::ParseTextToJSON(
                     boost::beast::buffers_to_string(res.body().data()));
 
                 // првоеряем в ответе наличие строк о токене и айди
@@ -1327,7 +1327,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/state"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/state"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer " + data.first, ""sv));
 
@@ -1338,11 +1338,11 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            boost::json::value server_resp = json_detail::parse_text_to_json(
+            boost::json::value server_resp = json_detail::ParseTextToJSON(
                 boost::beast::buffers_to_string(res.body().data()));
             std::string res_str = boost::beast::buffers_to_string(res.body().data());
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
                 config_.root_ + "state/test_api_game_state.txt"));
 
@@ -1369,7 +1369,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/state"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/state"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer " + data.first, ""sv));
 
@@ -1380,7 +1380,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), "GET, HEAD"sv,
+            assert(CheckServerResponse(std::move(res), "GET, HEAD"sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 405,
                 config_.root_ + "state/test_api_game_state_invalid_method.txt"));
 
@@ -1407,7 +1407,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/state"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/state"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer ahfyrgfbdkfjthfbsyednfjwpqotnd34"sv, ""sv));
 
@@ -1418,7 +1418,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
                 config_.root_ + "autho/test_api_token_not_found.txt"));
 
@@ -1503,7 +1503,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/player/action"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/player/action"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer " + data.first, "{\"move\": \"R\"}"sv));
 
@@ -1513,7 +1513,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
                 config_.root_ + "move/test_api_player_move.txt"));
 
@@ -1541,7 +1541,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/player/action"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/player/action"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer " + data.first, "{\"move\": \"R\"}"sv));
 
@@ -1552,7 +1552,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), "POST"sv,
+            assert(CheckServerResponse(std::move(res), "POST"sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 405,
                 config_.root_ + "login/test_api_game_login_invalid_method.txt"));
 
@@ -1579,7 +1579,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/player/action"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/player/action"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Cearer " + data.first, "{\"move\": \"R\"}"sv));
 
@@ -1590,7 +1590,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
                 config_.root_ + "autho/test_api_authorization_missing.txt"));
 
@@ -1617,7 +1617,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/player/action"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/player/action"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer ahfyrgfbdkfjthfbsyednfjwpqotnd34"sv, "{\"move\": \"R\"}"sv));
 
@@ -1627,7 +1627,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 401,
                 config_.root_ + "autho/test_api_token_not_found.txt"));
 
@@ -1654,7 +1654,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/player/action"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/player/action"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "text/css"sv,
                 "Bearer " + data.first, "{\"move\": \"R\"}"sv));
 
@@ -1665,7 +1665,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
                 config_.root_ + "move/test_api_player_move_invalid_content_type.txt"));
 
@@ -1692,7 +1692,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/player/action"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/player/action"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer " + data.first, ""sv));
 
@@ -1703,7 +1703,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
                 config_.root_ + "move/test_api_player_move_miss_body.txt"));
 
@@ -1730,7 +1730,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/player/action"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/player/action"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer " + data.first, "{\"move\": \"F\"}"sv));
 
@@ -1741,7 +1741,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
                 config_.root_ + "move/test_api_player_move_invalid_body.txt"));
 
@@ -1768,7 +1768,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/state"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/state"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer " + data.first, ""sv));
 
@@ -1779,11 +1779,11 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            boost::json::value server_resp = json_detail::parse_text_to_json(
+            boost::json::value server_resp = json_detail::ParseTextToJSON(
                 boost::beast::buffers_to_string(res.body().data()));
             std::string res_str = boost::beast::buffers_to_string(res.body().data());
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
                 config_.root_ + "move/test_api_player_move_state.txt"));
 
@@ -1888,7 +1888,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/tick"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/tick"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"timeDelta\": \"100\"}"sv));
 
@@ -1898,7 +1898,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
                 config_.root_ + "time/test_api_time_tick.txt"));
 
@@ -1925,7 +1925,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/tick"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/tick"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, ""sv));
 
@@ -1935,7 +1935,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
                 config_.root_ + "time/test_api_time_tick_invalid_body.txt"));
 
@@ -1962,7 +1962,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/tick"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/tick"sv,
                 http::verb::post, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 ""sv, "{\"timeDelta\": \"0.0\"}"sv));
 
@@ -1972,7 +1972,7 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 400,
                 config_.root_ + "time/test_api_time_tick_miss_body.txt"));
 
@@ -1999,7 +1999,7 @@ namespace test {
             stream_.connect(endpoint_);
 
             // отправляем сгенерированный запрос на сервер
-            http::write(stream_, make_test_request(endpoint_, "/api/v1/game/state"sv,
+            http::write(stream_, MakeTestRequest(endpoint_, "/api/v1/game/state"sv,
                 http::verb::get, BOOST_BEAST_VERSION_STRING, "application/json"sv,
                 "Bearer " + data.first, ""sv));
 
@@ -2010,11 +2010,11 @@ namespace test {
             // получаем ответ от сервера
             http::read(stream_, buffer, res);
 
-            boost::json::value server_resp = json_detail::parse_text_to_json(
+            boost::json::value server_resp = json_detail::ParseTextToJSON(
                 boost::beast::buffers_to_string(res.body().data()));
             std::string res_str = boost::beast::buffers_to_string(res.body().data());
 
-            assert(test_response_check(std::move(res), ""sv,
+            assert(CheckServerResponse(std::move(res), ""sv,
                 http_handler::ContentType::APP_JSON, "no_cache"sv, 200,
                 config_.root_ + "time/test_api_time_tick_state.txt"));
 
@@ -2092,7 +2092,7 @@ namespace test {
 
 
     // конфигурирует запрос по заданным параметрам
-    http::request<http::string_body> SimpleTest::make_test_request(resolver_endpoint& endpoint_, std::string_view target,
+    http::request<http::string_body> SimpleTest::MakeTestRequest(resolver_endpoint& endpoint_, std::string_view target,
         http::verb method, std::string_view user_agent, std::string_view content_type, std::string_view authorization, std::string_view body) {
 
         http::request<http::string_body> req{ method, target, 11 };
@@ -2119,7 +2119,7 @@ namespace test {
     }
 
     // првоеряет ответ на тестовый запрос согласно переданным параметрам
-    bool SimpleTest::test_response_check(http::response<http::dynamic_body>&& res, std::string_view allow,
+    bool SimpleTest::CheckServerResponse(http::response<http::dynamic_body>&& res, std::string_view allow,
         std::string_view content_type, std::string_view no_cache, int result_code, std::string_view reference_file_path) {
 
         // проверяем совпадение кода ответа сервера
@@ -2154,10 +2154,10 @@ namespace test {
             buffer << file.rdbuf(); file.close();
 
             // загоняем ответ сервера из строки в JSON
-            auto server_resp = json_detail::parse_text_to_json(
+            auto server_resp = json_detail::ParseTextToJSON(
                 boost::beast::buffers_to_string(res.body().data()));
             // загоняем буфер из файла в JSON
-            auto file_resp = json_detail::parse_text_to_json(buffer.str());
+            auto file_resp = json_detail::ParseTextToJSON(buffer.str());
 
             // сравниваем полученные значения
             assert(server_resp == file_resp);

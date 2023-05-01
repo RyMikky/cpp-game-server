@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 #include <random>
@@ -22,11 +22,11 @@ namespace game_handler {
 			return dist(__RANDOM_DEVICE__);
 		}() };
 
-		uint64_t geterate_lower_token_part();
+		uint64_t GenerateLowerTokenPart();
 
-		uint64_t generate_upper_token_part();
+		uint64_t GenerateUpperTokenPart();
 
-		std::string generate_token_32_hex();
+		std::string GenerateToken32Hex();
 
 		struct TokenTag {};
 

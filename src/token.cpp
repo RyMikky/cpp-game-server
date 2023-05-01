@@ -1,35 +1,35 @@
-#include "token.h"
+п»ї#include "token.h"
 
-#include <iomanip>                   // для работы std::hex
+#include <iomanip>                   // РґР»СЏ СЂР°Р±РѕС‚С‹ std::hex
 #include <sstream>
 
 namespace game_handler {
 
 	namespace detail {
 
-		uint64_t geterate_lower_token_part() {
+		uint64_t GenerateLowerTokenPart() {
 			return __LOWER_GENERATOR__();
 		}
 
-		uint64_t generate_upper_token_part() {
+		uint64_t GenerateUpperTokenPart() {
 			return __UPPER_GENERATOR__();
 		}
 		
-		std::string generate_token_32_hex() {
+		std::string GenerateToken32Hex() {
 
-			// генерируем младшее и старшее плечо
-			uint64_t lower_ = geterate_lower_token_part();
-			uint64_t upper_ = generate_upper_token_part();
+			// РіРµРЅРµСЂРёСЂСѓРµРј РјР»Р°РґС€РµРµ Рё СЃС‚Р°СЂС€РµРµ РїР»РµС‡Рѕ
+			uint64_t lower_ = GenerateLowerTokenPart();
+			uint64_t upper_ = GenerateUpperTokenPart();
 
-			// побитово складываю два числа
+			// РїРѕР±РёС‚РѕРІРѕ СЃРєР»Р°РґС‹РІР°СЋ РґРІР° С‡РёСЃР»Р°
 			uint64_t combined = (upper_ & lower_);
 
-			// повторно "ломаем" полученное скомбинированное число, еще раз частично перемешивя с ранее сгенерированными
+			// РїРѕРІС‚РѕСЂРЅРѕ "Р»РѕРјР°РµРј" РїРѕР»СѓС‡РµРЅРЅРѕРµ СЃРєРѕРјР±РёРЅРёСЂРѕРІР°РЅРЅРѕРµ С‡РёСЃР»Рѕ, РµС‰Рµ СЂР°Р· С‡Р°СЃС‚РёС‡РЅРѕ РїРµСЂРµРјРµС€РёРІСЏ СЃ СЂР°РЅРµРµ СЃРіРµРЅРµСЂРёСЂРѕРІР°РЅРЅС‹РјРё
 			uint64_t upper = (combined << 16) | ((lower_ & 0xffffull) << 48);
 			uint64_t lower = (combined >> 16) | ((upper_ & 0xffffull) << 48);
 
 			std::ostringstream out;
-			// создаём поток для вывода получившегося числа в текстовом представлении
+			// СЃРѕР·РґР°С‘Рј РїРѕС‚РѕРє РґР»СЏ РІС‹РІРѕРґР° РїРѕР»СѓС‡РёРІС€РµРіРѕСЃСЏ С‡РёСЃР»Р° РІ С‚РµРєСЃС‚РѕРІРѕРј РїСЂРµРґСЃС‚Р°РІР»РµРЅРёРё
 			out << std::hex << std::setfill('0') << std::setw(16) << upper << std::setw(16) << lower;
 			
 			return out.str();
