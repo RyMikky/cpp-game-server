@@ -60,11 +60,18 @@ namespace game_handler {
 	class GameSession : public std::enable_shared_from_this<GameSession> {
 		friend class GameHandler;
 	public:
-		GameSession(GameHandler& handler, const model::Map* map, size_t max_players) 
-			: game_handler_(handler), session_game_map_(map), players_id_(max_players) {
+		GameSession(GameHandler& handler, loot_gen::LootGeneratorConfig config, const model::Map* map, size_t max_players) 
+			: game_handler_(handler)
+			, loot_gen_{ config, []() { return model::GetRandomDouble(); } }
+			, session_game_map_(map)
+			, players_id_(max_players) {
 		}
-		GameSession(GameHandler& handler, const model::Map* map, size_t max_players, bool start_random_position)
-			: game_handler_(handler), session_game_map_(map), players_id_(max_players), random_start_position_(start_random_position) {
+		GameSession(GameHandler& handler, loot_gen::LootGeneratorConfig config, const model::Map* map, size_t max_players, bool start_random_position)
+			: game_handler_(handler)
+			, loot_gen_{ config, []() { return model::GetRandomDouble(); } }
+			, session_game_map_(map)
+			, players_id_(max_players)
+			, random_start_position_(start_random_position) {
 		}
 	protected:
 
@@ -84,9 +91,13 @@ namespace game_handler {
 		// отвечает есть ли в сессии свободное местечко
 		bool CheckFreeSpace();
 		
-		// чекает стартовую позицию на предмет совпадения с другими игроками в сессии
+		// возвращает мапу с игроками в игровой сессии
 		const SessionPlayers& GetPlayers() const {
 			return session_players_;
+		}
+		// возвращает мапу с лутом в игровой сессии
+		const SessionLoots& GetLoots() const {
+			return session_loots_;
 		}
 
 		const auto cbegin() const {
@@ -103,20 +114,25 @@ namespace game_handler {
 		}
 
 	private:
-		GameHandler& game_handler_;
-		const model::Map* session_game_map_;
-		std::vector<bool> players_id_;
-		SessionPlayers session_players_;
+		GameHandler& game_handler_;                         // ссылка на базовый игровой обработчик
+		loot_gen::LootGenerator loot_gen_;                  // собственный генератор лута игровой сессии
+		const model::Map* session_game_map_;                // указатель на карту игровой модели
+		std::vector<bool> players_id_;                      // булевый массив индексов игроков
+		SessionPlayers session_players_;                    // хешированная мапа с игроками
+		SessionLoots session_loots_;                        // хешированная мапа с лутом на карте
 
-		bool random_start_position_ = true;
+		bool random_start_position_ = true;                 // флаг случайной позиции игрока на старте
 
 		// изменяет координаты игрока при движении параллельно дороге, на которой он стоит
 		bool ParallelMovingImpl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
 		// изменяет координаты игрока при движении перпендикулярно дороге, на которой он стоит
 		bool CrossMovingImpl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
-
+		// обновляет позицию выбранного игрока в соответствии с его заданной скоростью, направлением и временем в секундах
 		bool UpdatePlayerPosition(Player& player, double time);
+		// проверяет стартовую позицию игрока на предмет совпадения с другими игроками в сессии
 		bool CheckStartPositionImpl(PlayerPosition& position);
+		// генерирует на карте новые предметы лута в указанном количестве
+		bool GenerateLoot(unsigned count);
 	};
 
 	class MapPtrHasher {
@@ -143,7 +159,7 @@ namespace game_handler {
 	public:
 		// отдаём создание игровой модели классу обработчику игры
 		explicit GameHandler(const fs::path& configuration)
-			: game_simple_(json_loader::LoadGameConfiguration(configuration)) {
+			: game_{ json_loader::LoadGameConfiguration(configuration) } {
 		}
 
 		// Выполняет обновление всех открытых игровых сессий по времени
@@ -170,15 +186,15 @@ namespace game_handler {
 
 	protected: // протектед блок доступен только friend class -у для обратной записи данных и получения уникальных токенов
 		/* 
-			Реверсивный метод, который вызывается из игровой сессии.
-			Служит для получения уникального токена при добавлении нового игрока.
+		 * Реверсивный метод, который вызывается из игровой сессии.
+		 * Служит для получения уникального токена при добавлении нового игрока.
 		*/
 		const Token* GetUniqueToken(std::shared_ptr<GameSession> session);
 		// удаляет токен из базы
 		bool ResetToken(std::string_view token);
 
 	private:
-		model::Game game_simple_;
+		model::Game game_;
 		std::mutex mutex_;
 
 		GameMapInstance instances_;

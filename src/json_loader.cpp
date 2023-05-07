@@ -102,38 +102,37 @@ namespace json_loader {
             }
         }
 
-        // базовый парсер элементов полученного config.json
-        model::Game ParseGameMapsData(json::value&& maps) {
+        // парсер элементов карты - типы лута
+        // на данный момент не используется
+        void ParseMapLootTypesData(model::Map& map, json::value&& loot_types) {
 
-            model::Game result;  // создаём пустое возвращаемое значение
+            for (auto element : loot_types.as_array()) {
 
-            // начинаем перебирать массив с данными по картам
-            for (auto element : maps.as_array()) {
+                model::LootType loot;       // создаём пустышку
 
-                // создаём карту по полученным данным
-                model::Map map{
-                    model::Map::Id {
-                        element.at("id").as_string().data()
-                    },
-                    element.at("name").as_string().data()
-                };
+                loot // заполняем обязательные элементы, которые должны быть в валидном конфиге
+                    .SetName(std::move(element.at("name").as_string().data()))
+                    .SetFile(std::move(element.at("file").as_string().data()))
+                    .SetType(std::move(element.at("type").as_string().data()))
+                    .SetScale(element.at("scale").as_double());
 
-                // парсим данные по дорогам, домам и офисам
-                // если данных нет, то будет выкинуто исключение, что собственно прекратит работу
-                ParseMapRoadsData(map, element.at("roads").as_array());
-                ParseMapOfficesData(map, element.at("offices").as_array());
-                ParseMapBuildingsData(map, element.at("buildings").as_array());
+                if (element.as_object().count("color")) {
+                    // если есть упоминание о цвете, то записываем его
+                    loot.SetColor(std::move(element.at("color").as_string().data()));
+                }
 
-                result.AddMap(map);              // не забываем добавить созданную карту в игру
+                if (element.as_object().count("rotation")) {
+                    // если есть упоминание о повороте, то записываем его
+                    loot.SetRotation(static_cast<int>(element.at("rotation").as_int64()));
+                }
+
+                // записываем данные о луте в карту
+                map.AddLootType(std::move(loot));
             }
-
-            return result;                       // возвращаем результат работы конфигураторов
         }
 
-        // базовый парсер элементов полученного config.json, вместе с базовой скоростью
-        model::Game ParseGameMapsData(json::value&& maps, double default_god_speed) {
-
-            model::Game result;  // создаём пустое возвращаемое значение
+        // парсер карт для созданной игровой модели
+        void ParseGameMapsData(model::Game& game, json::value&& maps, double default_dog_speed) {
 
             // начинаем перебирать массив с данными по картам
             for (auto& element : maps.as_array()) {
@@ -152,19 +151,76 @@ namespace json_loader {
                     map.SetOnMapSpeed(element.at("dogSpeed").as_double());
                 }
                 else {
-                    map.SetOnMapSpeed(default_god_speed);
+                    map.SetOnMapSpeed(default_dog_speed);
                 }
 
-                // парсим данные по дорогам, домам и офисам
+                // парсим данные по луту, дорогам, домам и офисам
                 // если данных нет, то будет выкинуто исключение, что собственно прекратит работу
+                // парсинг типов лута на данном этапе отключен, так как они не нужны backend-у
+                //ParseMapLootTypesData(map, element.at("lootTypes").as_array());
                 ParseMapRoadsData(map, element.at("roads").as_array());
                 ParseMapOfficesData(map, element.at("offices").as_array());
                 ParseMapBuildingsData(map, element.at("buildings").as_array());
+                
+                // назначаем на карте количество типов лута
+                map.SetLootTypesCount(element.at("lootTypes").as_array().size());
+                // с помощью класса-родителя ExtraDataCollector запоминаем массив с типами лута
+                // при обработке REST API api/v1/maps/{карта} эти данные будут добавленны в вывод
+                map.AddExtraData("lootTypes", model::extra_data::ExtraDataType::template_array, std::move(
+                    std::make_shared<model::extra_data::ExtraTemplateArrayData<boost::json::array>>(
+                        std::move(boost::json::array{ element.at("lootTypes").as_array() }))));
 
-                result.AddMap(map);              // не забываем добавить созданную карту в игру
+                game.AddMap(map);                       // добавляем карту игровой модели
+            }
+        }
+
+        // парсер настройки генератора лута
+        loot_gen::LootGeneratorConfig ParseGameLootGenConfig(json::value&& config) {
+
+            return loot_gen::LootGeneratorConfig()
+                .SetPeriod(config.at("period").as_double())
+                .SetProbability(config.at("probability").as_double());
+        }
+
+        /*
+        * Базовый конфигуратор игровой модели.
+        * Подготавливает игровую модель по общим данным.
+        * Запрашивает конфигурацию дополнительных элементов у блока парсеров карт и их содержимого.
+        */
+        model::Game ParseGameBaseConfig(json::object&& config) {
+
+            model::Game result;  // создаём пустое возвращаемое значение
+
+            if (config.count("defaultDogSpeed")) {
+                // назначаем базовую скорость перемещения песелей на картах
+                result.SetDefaultDogSpeed(config.at("defaultDogSpeed").as_double());
+            }
+            else {
+                // иначе кидаем исключение, так как эти данные должны быть в обязательном порядке
+                throw std::runtime_error("json_loader::detail::ParseGameBaseConfig::Error::Configuration file lost data {defaultDogSpeed}");
             }
 
-            return result;                       // возвращаем результат работы конфигураторов
+            if (config.count("lootGeneratorConfig")) {
+                // парсим и назначаем настройки генератора лута
+                result.SetLootGenConfig(std::move(
+                    detail::ParseGameLootGenConfig(
+                        std::move(config.at("lootGeneratorConfig")))));
+            }
+            else {
+                // иначе кидаем исключение, так как эти данные должны быть в обязательном порядке
+                throw std::runtime_error("json_loader::detail::ParseGameBaseConfig::Error::Configuration file lost data {lootGeneratorConfig}");
+            }
+
+            if (config.count("maps")) {
+                // выполняем наполнение игровой модели картами
+                detail::ParseGameMapsData(result, std::move(config.at("maps")), result.GetDefaultDogSpeed());
+            }
+            else {
+                // иначе кидаем исключение, так как эти данные должны быть в обязательном порядке
+                throw std::runtime_error("json_loader::detail::ParseGameBaseConfig::Error::Configuration file lost data {maps}");
+            }
+
+            return result;          // возвращаем подготовленную игровую модель
         }
 
     } // namespace detail
@@ -188,20 +244,9 @@ namespace json_loader {
         try
         {
             // делаем репарсинг данных в boost::json формат пытаясь сразу преобразоваться в словарь
-            auto boost_json_data = json_detail::ParseTextToJSON(text).as_object();
-
-            // в полученном жидомасоне должен быть массив с картами продолжаем настройку сервера
-            json::value maps = boost_json_data.at("maps");
-
-            if (boost_json_data.count("defaultDogSpeed")) {
-                // если в словаре есть упоминание о дефолтной скорости
-                // то берем запись, сразу конвертируем в double и вызываем соответствующую перегрузку
-                return detail::ParseGameMapsData(std::move(maps),
-                    boost_json_data.at("defaultDogSpeed").as_double());
-            }
-            else {
-                return detail::ParseGameMapsData(std::move(maps));
-            }
+            auto config = json_detail::ParseTextToJSON(text).as_object();
+            // передаем блок конфигурации в базовую функцию подготовки игровой модели
+            return detail::ParseGameBaseConfig(std::move(config));
         }
         catch (const std::exception& e)
         {

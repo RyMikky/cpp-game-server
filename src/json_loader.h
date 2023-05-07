@@ -17,10 +17,21 @@ namespace json_loader {
 		void ParseMapOfficesData(model::Map& map, json::value&& offices);
 		// парсер элементов карты - дороги
 		void ParseMapRoadsData(model::Map& map, json::value&& roads);
-		// базовый парсер элементов полученного config.json
-		model::Game ParseGameMapsData(json::value&& maps);
-		// базовый парсер элементов полученного config.json, вместе с базовой скоростью
-		model::Game ParseGameMapsData(json::value&& maps, double default_dog_speed);
+		// парсер элементов карты - типы лута
+		// на данный момент не используется
+		void ParseMapLootTypesData(model::Map& map, json::value&& loot_types);
+
+		// парсер карт для созданной игровой модели
+		void ParseGameMapsData(model::Game& game, json::value&& maps, double default_dog_speed);
+		// парсер настройки карты - настройки генератора лута
+		loot_gen::LootGeneratorConfig ParseGameLootGenConfig(json::value&& config);
+		
+		/*
+		* Базовый конфигуратор игровой модели.
+		* Подготавливает игровую модель по общим данным.
+		* Запрашивает конфигурацию дополнительных элементов у блока парсеров карт и их содержимого.
+		*/
+		model::Game ParseGameBaseConfig(json::object&& config);
 
 	} // namespace detail
 

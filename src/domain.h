@@ -138,7 +138,19 @@ namespace game_handler {
         std::hash<std::string> _hasher;
     };
 
+    struct GameLoot/* : public model::LootType */{
+        
+        GameLoot(/*model::LootType loot_type, */size_t type, PlayerPosition position)
+            : /*model::LootType(loot_type),*/ type_(type), pos_(position) {
+        }
+        // привязка к неиспользуемым элементам модели закомментирована
+
+        size_t type_;                // он же индекс в массиве LootTypes на карте
+        PlayerPosition pos_;         // позиция берется не из модели, а из игрока, так как в модели она в инте, а надо в дабле
+    };
+
     using SessionPlayers = std::unordered_map<const Token*, Player, TokenPtrHasher>;
+    using SessionLoots = std::unordered_map<size_t, GameLoot>;
     using SessionMapper = std::unordered_map<PosPtr, const Token*, PosPtrHasher>;
 
     using SPIterator = std::unordered_map<const game_handler::Token* const, game_handler::Player>::const_iterator;

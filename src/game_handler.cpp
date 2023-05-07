@@ -65,7 +65,7 @@ namespace game_handler {
 			}
 			catch (const std::exception& e)
 			{
-				throw std::runtime_error("GameTimer::ExecutionImpl::Error " + std::string(e.what()));
+				throw std::runtime_error("GameTimer::ExecutionImpl::Error\n" + std::string(e.what()));
 			}
 		}
 		else {
@@ -160,11 +160,18 @@ namespace game_handler {
 				UpdatePlayerPosition(player, static_cast<double>(time) / __MS_IN_ONE_SECOND__);
 			}
 
-			return true;
+			// запрашиваем количество лута для генерации
+			auto new_loot_count = loot_gen_.Generate(
+				std::chrono::milliseconds(time), 
+				static_cast<unsigned>(session_loots_.size()), 
+				static_cast<unsigned>(session_players_.size()));
+
+			// при успешной генерации исключений не будет, и генерация вернет true
+			return (new_loot_count > 0) ? GenerateLoot(new_loot_count) : true;
 		}
 		catch (const std::exception& e)
 		{
-			throw std::runtime_error("GameSession::UpdateState::Error::" + std::string(e.what()));
+			throw std::runtime_error("GameSession::UpdateState::Error::\n" + std::string(e.what()));
 		}
 	}
 
@@ -382,7 +389,7 @@ namespace game_handler {
 		}
 	}
 
-	// чекает стартовую позицию на предмет совпадения с другими игроками в сессии
+	// проверяет стартовую позицию игрока на предмет совпадения с другими игроками в сессии
 	bool GameSession::CheckStartPositionImpl(PlayerPosition& position) {
 
 		for (const auto& item : session_players_) {
@@ -392,6 +399,37 @@ namespace game_handler {
 			}
 		}
 		return true;
+	}
+
+	// генерирует на карте новые предметы лута в указанном количестве
+	bool GameSession::GenerateLoot(unsigned count) {
+
+		try
+		{
+			for (unsigned i = 0; i != count; ++i) {
+				// получаем случайный индекс из массива типов лута
+				size_t index = static_cast<size_t>(model::GetRandomInteger(0, static_cast<int>(session_game_map_->GetLootTypesCount())));
+				// на основе индекса создаём новый игровой лут
+				// привязка к неиспользуемым элементам модели закомментирована
+				GameLoot loot{ /*session_game_map_->GetLootType(index), */index, {} };
+
+				// получаем случайную точку на дорогах карты, точки игровой модели обрабатываются целочислеными значениями
+				model::Point position = session_game_map_->GetRandomPosition();
+
+				// чтобы не размещать вот по целочисленной позиции, прибавляем случайное число от минус дельты до плюс дельты дороги
+				loot.pos_.x_ = (position.x + model::GetRandomDouble(-__ROAD_DELTA__, __ROAD_DELTA__));
+				loot.pos_.y_ = (position.y + model::GetRandomDouble(-__ROAD_DELTA__, __ROAD_DELTA__));
+
+				// добавляем в список лута в текущей игровой сессии
+				session_loots_.emplace(session_loots_.size(), std::move(loot));
+			}
+
+			return true;
+		}
+		catch (const std::exception& e)
+		{
+			throw std::runtime_error("GameSession::GenerateLoot(unsigned)::Error\n" + std::string(e.what()));
+		}
 	}
 
 	// -------------------------- class GameHandler --------------------------
@@ -593,7 +631,7 @@ namespace game_handler {
 				}
 
 				// ищем запрошенную карту
-				auto map = game_simple_.FindMap(
+				auto map = game_.FindMap(
 					model::Map::Id{ std::string(
 						req_data.as_object().at("mapId").as_string()) });
 
@@ -620,7 +658,7 @@ namespace game_handler {
 	http_handler::Response GameHandler::FindMapResponse(http_handler::StringRequest&& req, std::string_view find_request_line) {
 
 		// ищем запрошенную карту
-		auto map = game_simple_.FindMap(model::Map::Id{ std::string(find_request_line) });
+		auto map = game_.FindMap(model::Map::Id{ std::string(find_request_line) });
 
 		if (map == nullptr) {
 			// если карта не найдена, то кидаем отбойник
@@ -649,7 +687,7 @@ namespace game_handler {
 		response.set(http::field::cache_control, "no-cache");
 
 		// заполняем тушку ответа с помощью жисонского метода
-		std::string body_str = json_detail::GetMapsList(game_simple_.GetMaps());
+		std::string body_str = json_detail::GetMapsList(game_.GetMaps());
 		response.set(http::field::content_length, std::to_string(body_str.size()));
 		response.body() = body_str;
 
@@ -797,7 +835,7 @@ namespace game_handler {
 		response.set(http::field::cache_control, "no-cache");
 
 		// заполняем тушку ответа с помощью жисонского метода
-		std::string body_str = json_detail::GetSessionStateList(session->GetPlayers());
+		std::string body_str = json_detail::GetSessionStateList(session->GetPlayers(), session->GetLoots());
 		response.set(http::field::content_length, std::to_string(body_str.size()));
 		response.body() = body_str;
 
@@ -850,7 +888,7 @@ namespace game_handler {
 			if (!have_a_plance) {
 				// если же мест в текущих открытых сессиях НЕ найдено, ну вот нету, значит надо открыть новую
 				ref = instances_.at(map)
-					.emplace_back(std::make_shared<GameSession>(*this, map, 200, random_start_position_));
+					.emplace_back(std::make_shared<GameSession>(*this, game_.GetLootGenConfig(), map, 200, random_start_position_));
 			}
 		}
 
@@ -859,10 +897,10 @@ namespace game_handler {
 			// добавляем указатель и создаём инстанс со списком сессий
 			instances_.insert(std::make_pair(map, GameInstance()));
 			// так как у нас еще нет никакие сессий то тупо создаём новую внутри 
-			// c максимумом, для примера, в 8 игроков (см. конструктор GameSession)
+			// c максимумом, для примера, в 200 игроков (см. конструктор GameSession)
 			// тут же получаем шару на неё, и передаем ей управление по вступлению в игру
 			ref = instances_.at(map)
-				.emplace_back(std::make_shared<GameSession>(*this, map, 200, random_start_position_));
+				.emplace_back(std::make_shared<GameSession>(*this, game_.GetLootGenConfig(), map, 200, random_start_position_));
 		}
 
 		// добавляем челика на сервер и принимаем на него указатель

@@ -33,7 +33,7 @@ namespace json_detail {
 	// возвращает строковое представление json_словаря с информацией о всех игроках в указанной сессии
 	std::string GetSessionPlayersList(const game_handler::SessionPlayers& players);
 	// возвращает строковое представление json_словаря с информацией о состоянии в указанной сессии
-	std::string GetSessionStateList(const game_handler::SessionPlayers& players);
+	std::string GetSessionStateList(const game_handler::SessionPlayers& players, const game_handler::SessionLoots& loots);
 
 	namespace detail {
 
@@ -41,6 +41,8 @@ namespace json_detail {
 		json::value GetDebugArgument(std::string_view argument, std::string_view value);
 		// возвращает json-словарь с информацией по коду и сообщению о ошибке
 		json::value GetErrorValue(std::string_view code, std::string_view message);
+		// возвращает json-массив с информацией о типах лута по запрошенной карте
+		json::value GetMapLootTypes(const model::Map* data);
 		// возвращает json-массив с информацией о офисах по запрошенной карте
 		json::array GetMapOffices(const model::Map* data);
 		// возвращает json-массив с информацией о строениях по запрошенной карте
