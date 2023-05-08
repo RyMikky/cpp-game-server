@@ -33,8 +33,11 @@ namespace json_detail {
 		/*result.emplace("lootTypes",
 			data->GetExtraData("lootTypes")->AsArray<boost::json::array>()->Data());*/
 
+		/*result.emplace("lootTypes",
+			data->GetExtraDataAsArray<boost::json::array>("lootTypes")->Data());*/
+
 		result.emplace("lootTypes",
-			data->GetExtraDataAsArray<boost::json::array>("lootTypes")->Data());
+			data->GetRawExtraDataAs<boost::json::array>("lootTypes"));
 
 		result.emplace("roads", detail::GetMapRoads(data));
 		result.emplace("buildings", detail::GetMapBuilds(data));

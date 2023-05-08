@@ -417,8 +417,8 @@ namespace game_handler {
 				model::Point position = session_game_map_->GetRandomPosition();
 
 				// чтобы не размещать вот по целочисленной позиции, прибавляем случайное число от минус дельты до плюс дельты дороги
-				loot.pos_.x_ = (position.x + model::GetRandomDouble(-__ROAD_DELTA__, __ROAD_DELTA__));
-				loot.pos_.y_ = (position.y + model::GetRandomDouble(-__ROAD_DELTA__, __ROAD_DELTA__));
+				loot.pos_.x_ = (position.x + model::GetRandomDoubleRoundOne(-__ROAD_DELTA__, __ROAD_DELTA__));
+				loot.pos_.y_ = (position.y + model::GetRandomDoubleRoundOne(-__ROAD_DELTA__, __ROAD_DELTA__));
 
 				// добавляем в список лута в текущей игровой сессии
 				session_loots_.emplace(session_loots_.size(), std::move(loot));

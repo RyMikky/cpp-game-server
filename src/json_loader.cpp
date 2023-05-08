@@ -166,9 +166,11 @@ namespace json_loader {
                 map.SetLootTypesCount(element.at("lootTypes").as_array().size());
                 // с помощью класса-родителя ExtraDataCollector запоминаем массив с типами лута
                 // при обработке REST API api/v1/maps/{карта} эти данные будут добавленны в вывод
-                map.AddExtraData("lootTypes", model::extra_data::ExtraDataType::template_array, std::move(
+                /*map.AddExtraData("lootTypes", model::extra_data::ExtraDataType::template_array, std::move(
                     std::make_shared<model::extra_data::ExtraTemplateArrayData<boost::json::array>>(
-                        std::move(boost::json::array{ element.at("lootTypes").as_array() }))));
+                        std::move(boost::json::array{ element.at("lootTypes").as_array() }))));*/
+
+                map.AddExtraArrayData("lootTypes", std::move(boost::json::array{ element.at("lootTypes").as_array() }));
 
                 game.AddMap(map);                       // добавляем карту игровой модели
             }

@@ -30,6 +30,21 @@ namespace model {
         return dis(gen);
     }
 
+    double GetRandomDoubleRoundOne(double from, double to) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dis(from, to);
+
+        double result = dis(gen);
+
+        if (result >= 0) {
+            return std::floor(result * 10) / 10;
+        }
+        else {
+            return std::ceil(result * 10) / 10;
+        }
+    }
+
     Point Road::GetRandomPosition() const {
         return IsHorizontal() ?
             Point{ GetRandomInteger(

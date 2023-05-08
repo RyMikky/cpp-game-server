@@ -38,6 +38,14 @@ namespace model {
     // возвращает случайное вещественное число в диапазоне from -> to
     double GetRandomDouble(double from, double to);
 
+    /*
+    * Возвращает случайное вещественное число в диапазоне from -> to 
+    * С округлением до 1 знака после запятой, для отрицательных чисел в большую сторону
+    * Для положительных числе в меньшую сторону (используются std::floor и std:ceil)
+    * Например -0.46741 округлится до -0.4; 0.3842 -> 0.3; и так далее
+    */
+    double GetRandomDoubleRoundOne(double from, double to);
+
     class Road {
         struct HorizontalTag {
             explicit HorizontalTag() = default;

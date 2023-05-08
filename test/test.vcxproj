@@ -18,52 +18,13 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="boost_json.cpp" />
-    <ClCompile Include="game_handler.cpp" />
-    <ClCompile Include="http_server.cpp" />
-    <ClCompile Include="json_loader.cpp" />
-    <ClCompile Include="logger_handler.cpp" />
-    <ClCompile Include="loot_generator.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="model.cpp" />
-    <ClCompile Include="options.cpp" />
-    <ClCompile Include="player.cpp" />
-    <ClCompile Include="request_handler.cpp" />
-    <ClCompile Include="resource_handler.cpp" />
-    <ClCompile Include="test_frame.cpp" />
-    <ClCompile Include="token.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="boost_json.h" />
-    <ClInclude Include="domain.h" />
-    <ClInclude Include="extra_data.h" />
-    <ClInclude Include="loot_generator.h" />
-    <ClInclude Include="options.h" />
-    <ClInclude Include="game_handler.h" />
-    <ClInclude Include="http_server.h" />
-    <ClInclude Include="json_loader.h" />
-    <ClInclude Include="logger_handler.h" />
-    <ClInclude Include="model.h" />
-    <ClInclude Include="player.h" />
-    <ClInclude Include="request_handler.h" />
-    <ClInclude Include="resource_handler.h" />
-    <ClInclude Include="sdk.h" />
-    <ClInclude Include="tagged.h" />
-    <ClInclude Include="test_frame.h" />
-    <ClInclude Include="token.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\data\config.json" />
-    <None Include="packages.config" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{d6af5272-e70a-4e45-a112-fcbd64731de6}</ProjectGuid>
-    <RootNamespace>src</RootNamespace>
+    <ProjectGuid>{93c7c785-ff5a-4854-abee-7f19ec7188ff}</ProjectGuid>
+    <RootNamespace>test</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>cpp-game-server</ProjectName>
+    <ProjectName>loot_generator_tests</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -111,14 +72,14 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <TargetName>loot_generator_test</TargetName>
+    <IntDir>$(SolutionDir)\obj\loot_generator_test\$(Platform)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)\obj\cpp-game-server\$(Platform)\$(Configuration)\</IntDir>
-    <TargetName>cpp-game-server</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
+    <TargetName>loot_generator_test</TargetName>
     <IntDir>$(SolutionDir)\obj\$(Platform)\$(Configuration)\</IntDir>
-    <TargetName>cpp-game-server</TargetName>
+    <OutDir>$(SolutionDir)\bin\$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -152,14 +113,17 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_WIN32_WINNT=0x0601;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <AdditionalUsingDirectories>%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
+      <AdditionalIncludeDirectories>F:\Libraries\Catch2\include;</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>F:\Libraries\Catch2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Catch2d.lib;Catch2Maind.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -168,10 +132,9 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_WIN32_WINNT=0x0601;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -180,34 +143,31 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\loot_generator.cpp" />
+    <ClCompile Include="..\src\model.cpp" />
+    <ClCompile Include="loot_generator_tests.cpp" />
+    <ClCompile Include="model_tests.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\extra_data.h" />
+    <ClInclude Include="..\src\loot_generator.h" />
+    <ClInclude Include="..\src\model.h" />
+    <ClInclude Include="..\src\tagged.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\boost.1.78.0\build\boost.targets" Condition="Exists('..\packages\boost.1.78.0\build\boost.targets')" />
-    <Import Project="..\packages\boost_json-vc143.1.78.0\build\boost_json-vc143.targets" Condition="Exists('..\packages\boost_json-vc143.1.78.0\build\boost_json-vc143.targets')" />
-    <Import Project="..\packages\boost_container-vc143.1.78.0\build\boost_container-vc143.targets" Condition="Exists('..\packages\boost_container-vc143.1.78.0\build\boost_container-vc143.targets')" />
-    <Import Project="..\packages\boost_log-vc143.1.78.0\build\boost_log-vc143.targets" Condition="Exists('..\packages\boost_log-vc143.1.78.0\build\boost_log-vc143.targets')" />
-    <Import Project="..\packages\boost_atomic-vc143.1.78.0\build\boost_atomic-vc143.targets" Condition="Exists('..\packages\boost_atomic-vc143.1.78.0\build\boost_atomic-vc143.targets')" />
     <Import Project="..\packages\boost_chrono-vc143.1.78.0\build\boost_chrono-vc143.targets" Condition="Exists('..\packages\boost_chrono-vc143.1.78.0\build\boost_chrono-vc143.targets')" />
-    <Import Project="..\packages\boost_date_time-vc143.1.78.0\build\boost_date_time-vc143.targets" Condition="Exists('..\packages\boost_date_time-vc143.1.78.0\build\boost_date_time-vc143.targets')" />
-    <Import Project="..\packages\boost_filesystem-vc143.1.78.0\build\boost_filesystem-vc143.targets" Condition="Exists('..\packages\boost_filesystem-vc143.1.78.0\build\boost_filesystem-vc143.targets')" />
-    <Import Project="..\packages\boost_log_setup-vc143.1.78.0\build\boost_log_setup-vc143.targets" Condition="Exists('..\packages\boost_log_setup-vc143.1.78.0\build\boost_log_setup-vc143.targets')" />
-    <Import Project="..\packages\boost_thread-vc143.1.78.0\build\boost_thread-vc143.targets" Condition="Exists('..\packages\boost_thread-vc143.1.78.0\build\boost_thread-vc143.targets')" />
-    <Import Project="..\packages\boost_program_options-vc143.1.78.0\build\boost_program_options-vc143.targets" Condition="Exists('..\packages\boost_program_options-vc143.1.78.0\build\boost_program_options-vc143.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\boost.1.78.0\build\boost.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost.1.78.0\build\boost.targets'))" />
-    <Error Condition="!Exists('..\packages\boost_json-vc143.1.78.0\build\boost_json-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_json-vc143.1.78.0\build\boost_json-vc143.targets'))" />
-    <Error Condition="!Exists('..\packages\boost_container-vc143.1.78.0\build\boost_container-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_container-vc143.1.78.0\build\boost_container-vc143.targets'))" />
-    <Error Condition="!Exists('..\packages\boost_log-vc143.1.78.0\build\boost_log-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_log-vc143.1.78.0\build\boost_log-vc143.targets'))" />
-    <Error Condition="!Exists('..\packages\boost_atomic-vc143.1.78.0\build\boost_atomic-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_atomic-vc143.1.78.0\build\boost_atomic-vc143.targets'))" />
     <Error Condition="!Exists('..\packages\boost_chrono-vc143.1.78.0\build\boost_chrono-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_chrono-vc143.1.78.0\build\boost_chrono-vc143.targets'))" />
-    <Error Condition="!Exists('..\packages\boost_date_time-vc143.1.78.0\build\boost_date_time-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_date_time-vc143.1.78.0\build\boost_date_time-vc143.targets'))" />
-    <Error Condition="!Exists('..\packages\boost_filesystem-vc143.1.78.0\build\boost_filesystem-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_filesystem-vc143.1.78.0\build\boost_filesystem-vc143.targets'))" />
-    <Error Condition="!Exists('..\packages\boost_log_setup-vc143.1.78.0\build\boost_log_setup-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_log_setup-vc143.1.78.0\build\boost_log_setup-vc143.targets'))" />
-    <Error Condition="!Exists('..\packages\boost_thread-vc143.1.78.0\build\boost_thread-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_thread-vc143.1.78.0\build\boost_thread-vc143.targets'))" />
-    <Error Condition="!Exists('..\packages\boost_program_options-vc143.1.78.0\build\boost_program_options-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_program_options-vc143.1.78.0\build\boost_program_options-vc143.targets'))" />
   </Target>
 </Project>
