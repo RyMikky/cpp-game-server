@@ -8,7 +8,6 @@ using namespace std::literals;
 SCENARIO("Loot generation") {
     using loot_gen::LootGenerator;
     using TimeInterval = loot_gen::TimeInterval;
-    //using TimeInterval = LootGenerator::TimeInterval;
 
     GIVEN("a loot generator") {
         LootGenerator gen{1s, 1.0};

@@ -112,10 +112,12 @@ namespace game_handler {
 			
 			// создаём игрока в текущей игровой сессии
 			session_players_[player_token] = std::move(
-				Player{ uint16_t(std::distance(players_id_.begin(), id)), name, player_token }
-					.SetPlayerPosition(std::move(position))               // назначаем стартовую позицию
-					.SetPlayerDirection(PlayerDirection::NORTH)                  // назначаем дефолтное направление взгляда
-					.SetPlayerSpeed({ 0, 0 }));                            // назначаем стартовую скорость
+				Player{ 
+					static_cast<size_t>((std::distance(players_id_.begin(), id))),
+					name, player_token, session_game_map_->GetOnMapBagCapacity() }
+					.SetCurrentPosition(std::move(position))               // назначаем стартовую позицию
+					.SetDirection(PlayerDirection::NORTH)                  // назначаем дефолтное направление взгляда
+					.SetSpeed({ 0, 0 }));                            // назначаем стартовую скорость
 					
 			// делаем пометку в булевом массиве
 			*id = true;
@@ -143,22 +145,37 @@ namespace game_handler {
 		}
 		else {
 			// освобождаем id текущего игрока по токену
-			players_id_[session_players_.at(token).GetPlayerId()] = false;
+			players_id_[session_players_.at(token).GetId()] = false;
 			// удаляем запись о игроке вместе со структурой
 			session_players_.erase(token);
 			return true;
 		}
 	}
 
-	// обновляет состояние игры с заданным временем в миллисекундах
+	/*
+	* Обновляет состояние игры с заданным временем в миллисекундах.
+	* Запускает полный цикл обработки в следующей последовательности:
+	*  1. Расчёт будущих позиций игроков
+	*  2. Расчёт и выполнение ожидаемых при перемещении коллизий
+	*  3. Выполнение перемещения игроков на будущие координаты
+	*  4. Генерация лута на карте
+	*/
 	bool GameSession::UpdateState(int time) {
 		try
 		{
-			// просто перебираем всех игроков в сессии
-			for (auto& [token, player] : session_players_) {
-				// обновляет позицию выбранного игрока в соответствии с его заданной скоростью, направлением и временем в секундах
-				UpdatePlayerPosition(player, static_cast<double>(time) / __MS_IN_ONE_SECOND__);
-			}
+			// 1. Расчёт будущих позиций игроков, так как задаётся время в миллисекундах
+			// то мы должны перевести данные в дабл в секунды, так как скорость считается в м/с
+			UpdateFuturePlayersPositions(static_cast<double>(time) / __MS_IN_ONE_SECOND__);
+
+			// 2. Расчёт и выполнение ожидаемых при перемещении коллизий
+			// В процессе исполнения будут расчитаны коллизии, выполнены действия по подбору и сдаче предметов лута
+			HandlePlayersCollisionsActions();
+
+			// 3. Выполнение перемещения игроков на расчитаные в пункте 1 будущие координаты
+			UpdateCurrentPlayersPositions();
+
+			// 4. Генерация лута на карте
+			UpdateSessionLootsCount(time);
 
 			// запрашиваем количество лута для генерации
 			auto new_loot_count = loot_gen_.Generate(
@@ -167,7 +184,7 @@ namespace game_handler {
 				static_cast<unsigned>(session_players_.size()));
 
 			// при успешной генерации исключений не будет, и генерация вернет true
-			return (new_loot_count > 0) ? GenerateLoot(new_loot_count) : true;
+			return (new_loot_count > 0) ? GenerateSessionLootImpl(new_loot_count) : true;
 		}
 		catch (const std::exception& e)
 		{
@@ -181,23 +198,23 @@ namespace game_handler {
 		switch (move)
 		{
 		case game_handler::PlayerMove::UP: // верх скорость {0, -speed}
-			GetPlayer(token)->SetPlayerSpeed(0, -session_game_map_->GetOnMapSpeed()).SetPlayerDirection(PlayerDirection::NORTH);
+			GetPlayer(token)->SetSpeed(0, -session_game_map_->GetOnMapSpeed()).SetDirection(PlayerDirection::NORTH);
 			return true;
 
 		case game_handler::PlayerMove::DOWN: // вниз скорость {0, speed}
-			GetPlayer(token)->SetPlayerSpeed(0, session_game_map_->GetOnMapSpeed()).SetPlayerDirection(PlayerDirection::SOUTH);
+			GetPlayer(token)->SetSpeed(0, session_game_map_->GetOnMapSpeed()).SetDirection(PlayerDirection::SOUTH);
 			return true;
 
 		case game_handler::PlayerMove::LEFT: // влево скорость {-speed, 0}
-			GetPlayer(token)->SetPlayerSpeed(-session_game_map_->GetOnMapSpeed(), 0).SetPlayerDirection(PlayerDirection::WEST);
+			GetPlayer(token)->SetSpeed(-session_game_map_->GetOnMapSpeed(), 0).SetDirection(PlayerDirection::WEST);
 			return true;
 
 		case game_handler::PlayerMove::RIGHT: // влево скорость {speed, 0}
-			GetPlayer(token)->SetPlayerSpeed(session_game_map_->GetOnMapSpeed(), 0).SetPlayerDirection(PlayerDirection::EAST);
+			GetPlayer(token)->SetSpeed(session_game_map_->GetOnMapSpeed(), 0).SetDirection(PlayerDirection::EAST);
 			return true;
 
 		case game_handler::PlayerMove::STAY:
-			GetPlayer(token)->SetPlayerSpeed(0, 0);
+			GetPlayer(token)->SetSpeed(0, 0);
 			return true;
 
 		case game_handler::PlayerMove::error:
@@ -216,17 +233,211 @@ namespace game_handler {
 		return id != players_id_.end();
 	}
 
-	// изменяет координаты игрока при движении параллельно дороге, на которой он стоит
-	bool GameSession::ParallelMovingImpl(Player& player, PlayerDirection direction, 
-		PlayerPosition&& from, PlayerPosition&& to, const model::Road* road) {
+	// ----------------- блок наследуемых методов CollisionProvider ----------------------------
+
+	// возвращает количество офисов бюро находок на карте игровой сессии
+	size_t GameSession::OfficesCount() const {
+		return session_game_map_->GetOffices().size();
+	}
+	// возвращает офис бюро находок по индексу
+	const model::Office& GameSession::GetOffice(size_t index) const {
+		if (index < OfficesCount()) {
+			return session_game_map_->GetOffices()[index];
+		}
+		else {
+			throw std::out_of_range("game_handler::GameSession::GetOffice(index)::Error::Index is out of range");
+		}
+	}
+
+	// проверяет стартовую позицию игрока на предмет совпадения с другими игроками в сессии
+	bool GameSession::CheckStartPositionImpl(PlayerPosition& position) {
+
+		for (const auto& [token, player] : session_players_) {
+			// если нашли поцизию совпадающую с запрошенной то выходим с false
+			if (position == player.GetCurrentPosition()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	// генерирует на карте новые предметы лута в указанном количестве
+	bool GameSession::GenerateSessionLootImpl(unsigned count) {
+
+		try
+		{
+			for (unsigned i = 0; i != count; ++i) {
+
+				// смотрим есть ли место в текущей игровой сессии для единиц лута
+				auto id = std::find(loots_id_.begin(), loots_id_.end(), false);
+
+				if (id != loots_id_.end()) {
+					// вся генерация выполняется только в том случае, если есть место для размещения
+					// количество лута ограничено, см. конструктор игровой сессии
+
+					// получаем количество типов лута карты
+					int loot_types_count = static_cast<int>(session_game_map_->GetLootTypesCount());
+
+					if (loot_types_count != 0) {
+						// дальше генерируем если вообще есть какой-то лут, который может быть сгенерирован
+
+						// получаем случайный индекс из массива типов лута
+						size_t index = static_cast<size_t>(model::GetRandomInteger(0, loot_types_count - 1));
+
+						// на основе индекса создаём новый игровой лут
+						GameLoot loot{ session_game_map_->GetLootType(index), index, {} };
+						// получаем случайную точку на дорогах карты, точки игровой модели обрабатываются целочислеными значениями
+						model::Point position = session_game_map_->GetRandomPosition();
+
+						// чтобы не размещать вот по целочисленной позиции, прибавляем случайное число от минус дельты до плюс дельты дороги
+						// ВРЕМЕННО ОТКЛЮЧЕНО, чтобы упростить тестирование сбора предметов
+						//loot.pos_.x_ = (position.x + model::GetRandomDoubleRoundOne(-__ROAD_DELTA__, __ROAD_DELTA__));
+						//loot.pos_.y_ = (position.y + model::GetRandomDoubleRoundOne(-__ROAD_DELTA__, __ROAD_DELTA__));
+
+						loot.pos_.x_ = position.x;
+						loot.pos_.y_ = position.y;
+
+						// добавляем в список лута в текущей игровой сессии
+						// уникальным индексом будет как и в случае с игроком, индекс в булевом массиве
+						session_loots_.emplace(
+							static_cast<size_t>(std::distance(loots_id_.begin(), id)), std::move(loot));
+
+						// поднинмаем флаг в булевом массиве по занятой позиции
+						*id = true;
+					}
+				}
+			}
+
+			return true;
+		}
+		catch (const std::exception& e)
+		{
+			throw std::runtime_error("GameSession::GenerateLoot(unsigned)::Error\n" + std::string(e.what()));
+		}
+	}
+
+	// выполняет проверку количестав лута на карте и генерацию нового
+	bool GameSession::UpdateSessionLootsCount(int time) {
+
+		// запрашиваем количество лута для генерации
+		// после обработки коллизий на карте может быть мало предметов
+		// или могут зайти новые игроки в игру
+		auto new_loot_count = loot_gen_.Generate(
+			std::chrono::milliseconds(time),
+			static_cast<unsigned>(session_loots_.size()),
+			static_cast<unsigned>(session_players_.size()));
+
+		// вызываем генерацию нового лута
+		return GenerateSessionLootImpl(new_loot_count);
+	}
+
+	// выполняет обновления текущих позиций игроков согласно расчитанных ранее будущих позиций
+	bool GameSession::UpdateCurrentPlayersPositions() {
+
+		for (auto& player : session_players_) {
+			// просто обновляем позицию для всех игроков
+			player.second.UpdateCurrentPosition();
+		}
+
+		return true;
+	}
+
+	// переносит предмет в сумку игрока, удаляет предмет с карты
+	bool GameSession::PutLootInToTheBag(Player& player, size_t loot_id) {
 		
+		if (session_loots_.count(loot_id)) {
+
+			if (loots_in_bags_.count(loot_id)) {
+				// предмет никак не может находиться в сумке, его еще пока в сумку не запихнули, или не очистили после сдачи в бюро
+				throw std::runtime_error("game_handler::GameSession::PutLootInToTheBag::Error::Loot already in somebody bag");
+			}
+
+			if (!player.CheckFreeBagSpace()) {
+				// еще раз на всякий пожарный проверяем, что место есть, а то далее будет переннос предмета в другую мапу
+				return false;
+			}
+
+			// переносим предмет из основной мапы лута на карте в мапу лута в сумках
+			loots_in_bags_.emplace(std::pair{ loot_id, std::move(session_loots_.at(loot_id)) });
+			// удаляем запись из основной мапы лута на карте
+			session_loots_.erase(loot_id);
+
+			// добавляем игроку указанный предмет в сумку
+			return player.AddLoot(loot_id, &loots_in_bags_.at(loot_id));
+		}
+
+		return false;
+	}
+
+	// возвращает предметы в офис бюро находок, удаляет их из инвентаря и начисляет очки
+	bool GameSession::ReturnLootsToTheOfficeImpl(Player& player) {
+
+		// начинаем перебирать все что хранится в сумке игрока
+		for (size_t i = 0; i != player.GetBagSize(); ++i) {
+
+			// "возвращаем" лут в "офис" бюро находок 
+			auto loot = player.ReturnLoot(i);
+			
+			// удаляем запись о луте из мапы лута в инвентаре игроков
+			loots_in_bags_.erase(loot.index_);
+
+			// снимаем флаг с булевого вектора лута, чтобы можно было снова создать элемент с таким id
+			loots_id_[loot.index_] = false;
+		}
+
+		return true;
+	}
+
+	// выполняет расчёт коллизий и выполняет их согласно полученому массиву
+	bool GameSession::HandlePlayersCollisionsActions() {
+
+		// Для начала выполняем поиск коллизий
+		auto events = FindCollisionEvents(*this);
+
+		// Выполняем перебор найденых событий с вызовом соответствующих обработчиков
+		for (const auto& event : events) {
+
+			if (event.type == CollisionEventType::GATHERING) {
+
+				if (session_players_.count(event.player_token)) {
+					if (session_loots_.count(event.object_id)) {
+						// если токен валиден, и предмет на карте, то отдаем работу соответствующему обработчику
+						PutLootInToTheBag(session_players_.at(event.player_token), event.object_id);
+					}
+					
+				}
+				else {
+					throw std::invalid_argument("game_handler::GameSession::UpdatePlayersCollisionsActions::Gathering::Error::Invalid player token");
+				}
+
+			}
+
+			else if (event.type == CollisionEventType::RETURN) {
+
+				if (session_players_.count(event.player_token)) {
+					// если токен валиден, то отдаем работу соответствующему обработчику
+					ReturnLootsToTheOfficeImpl(session_players_.at(event.player_token));
+				}
+				else {
+					throw std::invalid_argument("game_handler::GameSession::UpdatePlayersCollisionsActions::Return::Error::Invalid player token");
+				}
+			}
+		}
+
+		return true;
+	}
+
+	// изменяет координаты игрока при движении параллельно дороге, на которой он стоит
+	bool GameSession::PlayerParallelMovingImpl(Player& player, PlayerDirection direction,
+		PlayerPosition&& from, PlayerPosition&& to, const model::Road* road) {
+
 		bool player_keep_moving = true;                // флаг продолжения движения игрока 
 		double limit_dy = 0u;                          // заготовка под лимит по оси Y
 		double limit_dx = 0u;                          // заготовка под лимит по оси X
 
 		switch (direction)
 		{
-		// в данном кейсе координата PlayerPosition to.y_ должна быть меньше PlayerPosition from.y_
+			// в данном кейсе координата PlayerPosition to.y_ должна быть меньше PlayerPosition from.y_
 		case game_handler::PlayerDirection::NORTH:
 			// необходимо убедиться, что мы не поднимемся выше допустимого лимита
 			// берем наименьшую координату вертикальной дороги по оси Y и вычитаем дельту
@@ -238,7 +449,7 @@ namespace game_handler {
 			}
 			break;
 
-		// в данном кейсе координата PlayerPosition to.y_ должна быть больше PlayerPosition from.y_
+			// в данном кейсе координата PlayerPosition to.y_ должна быть больше PlayerPosition from.y_
 		case game_handler::PlayerDirection::SOUTH:
 			// необходимо убедиться, что мы не опускаемся ниже допустимого лимита
 			// берем наивысшую координату вертикальной дороги по оси Y и прибавляем дельту
@@ -250,7 +461,7 @@ namespace game_handler {
 			}
 			break;
 
-		// в данном кейсе координата PlayerPosition to.x_ должна быть меньше PlayerPosition from.x_
+			// в данном кейсе координата PlayerPosition to.x_ должна быть меньше PlayerPosition from.x_
 		case game_handler::PlayerDirection::WEST:
 			// необходимо убедиться, что мы не смещаемся левее допустимого лимита
 			// берем наименьшую координату горизонтальной дороги по оси X и вычитаем дельту
@@ -262,7 +473,7 @@ namespace game_handler {
 			}
 			break;
 
-		// в данном кейсе координата PlayerPosition to.x_ должна быть больше PlayerPosition from.x_
+			// в данном кейсе координата PlayerPosition to.x_ должна быть больше PlayerPosition from.x_
 		case game_handler::PlayerDirection::EAST:
 			// необходимо убедиться, что мы не смещаемся правее допустимого лимита
 			// берем наибольшую координату горизонтальной дороги по оси X и прибавляем дельту
@@ -278,23 +489,23 @@ namespace game_handler {
 			return false;
 		}
 		// записываем новые координаты и тормозим если необходимо
-		player_keep_moving ? player.SetPlayerPosition(std::move(to)) :
-			player.SetPlayerPosition(std::move(to)).SetPlayerSpeed(0, 0);
+		player_keep_moving ? player.SetFuturePosition(std::move(to)) :
+			player.SetFuturePosition(std::move(to)).SetSpeed(0, 0);
 
 		return true;
 	}
 
 	// изменяет координаты игрока при движении перпендикулярно дороге, на которой он стоит
-	bool GameSession::CrossMovingImpl(Player& player, PlayerDirection direction, 
+	bool GameSession::PlayerCrossMovingImpl(Player& player, PlayerDirection direction,
 		PlayerPosition&& from, PlayerPosition&& to, const model::Road* road) {
-		
+
 		bool player_keep_moving = true;                // флаг продолжения движения игрока 
 		double limit_dy = 0u;                          // заготовка под лимит по оси Y
 		double limit_dx = 0u;                          // заготовка под лимит по оси X
-		
+
 		switch (direction)
 		{
-		// в данном кейсе координата PlayerPosition to.y_ должна быть меньше PlayerPosition from.y_
+			// в данном кейсе координата PlayerPosition to.y_ должна быть меньше PlayerPosition from.y_
 		case game_handler::PlayerDirection::NORTH:
 			// округляем y_ позиции игрока (from), до целого и вычитаем дельту отступа от центра дороги
 			limit_dy = static_cast<double>(detail::RoundDoubleMathematic(from.y_)) - __ROAD_DELTA__;
@@ -305,7 +516,7 @@ namespace game_handler {
 			}
 			break;
 
-		// в данном кейсе координата PlayerPosition to.y_ должна быть больше PlayerPosition from.y_
+			// в данном кейсе координата PlayerPosition to.y_ должна быть больше PlayerPosition from.y_
 		case game_handler::PlayerDirection::SOUTH:
 			// округляем y_ позиции игрока (from), до целого и прибавляем дельту отступа от центра дороги
 			limit_dy = static_cast<double>(detail::RoundDoubleMathematic(from.y_)) + __ROAD_DELTA__;
@@ -316,7 +527,7 @@ namespace game_handler {
 			}
 			break;
 
-		// в данном кейсе координата PlayerPosition to.x_ должна быть меньше PlayerPosition from.x_
+			// в данном кейсе координата PlayerPosition to.x_ должна быть меньше PlayerPosition from.x_
 		case game_handler::PlayerDirection::WEST:
 			// округляем x_ позиции игрока (from), до целого и вычитаем дельту отступа от центра дороги
 			limit_dx = static_cast<double>(detail::RoundDoubleMathematic(from.x_)) - __ROAD_DELTA__;
@@ -327,7 +538,7 @@ namespace game_handler {
 			}
 			break;
 
-		// в данном кейсе координата PlayerPosition to.x_ должна быть больше PlayerPosition from.x_
+			// в данном кейсе координата PlayerPosition to.x_ должна быть больше PlayerPosition from.x_
 		case game_handler::PlayerDirection::EAST:
 			// округляем x_ позиции игрока (from), до целого и прибавляем дельту отступа от центра дороги
 			limit_dx = static_cast<double>(detail::RoundDoubleMathematic(from.x_)) + __ROAD_DELTA__;
@@ -342,17 +553,17 @@ namespace game_handler {
 			return false;
 		}
 		// записываем новые координаты и тормозим если необходимо
-		player_keep_moving ? player.SetPlayerPosition(std::move(to)) :
-			player.SetPlayerPosition(std::move(to)).SetPlayerSpeed(0, 0);
+		player_keep_moving ? player.SetFuturePosition(std::move(to)) :
+			player.SetFuturePosition(std::move(to)).SetSpeed(0, 0);
 
 		return true;
 	}
 
-	bool GameSession::UpdatePlayerPosition(Player& player, double time) {
+	bool GameSession::CalculateFuturePlayerPositionImpl(Player& player, double time) {
 
 		// записываем вектор ожидаемого приращения по положению персонажа
-		PlayerPosition delta_pos{ player.GetPlayerPosition().x_ + (player.GetPlayerSpeed().xV_ * time), 
-			player.GetPlayerPosition().y_ + (player.GetPlayerSpeed().yV_ * time) };
+		PlayerPosition delta_pos{ player.GetCurrentPosition().x_ + (player.GetSpeed().xV_ * time),
+			player.GetCurrentPosition().y_ + (player.GetSpeed().yV_ * time) };
 		// чтобы лишнего не считать, проверяем есть ли у нас какое-то приращение в принципе
 		if (delta_pos.x_ == 0 && delta_pos.y_ == 0) {
 			return true;           // если приращения нет, то сразу выходим и не продолжаем
@@ -360,15 +571,15 @@ namespace game_handler {
 
 		const model::Road* road = nullptr;    // готовим заготовку под "дорогу"
 		// записываем во временную переменную, чтобы не делать лишних вызовов
-		PlayerDirection direction = player.GetPlayerDirection();
+		PlayerDirection direction = player.GetDirection();
 		//PlayerDirection direction = player.get_speed_direction();
-		PlayerPosition position = player.GetPlayerPosition();
+		PlayerPosition position = player.GetCurrentPosition();
 		// округляем позицию до уровня логики model::Map
 		model::Point point{ detail::RoundDoubleMathematic(position.x_), detail::RoundDoubleMathematic(position.y_) };
-		
+
 		// в зависимости от нашего направления запрашиваем дорогу
 		// если игрок смотрит влево или вправо, полагаем, что будет движение по горизонтальной дороге
-		if (direction == PlayerDirection::WEST || direction == PlayerDirection::EAST) {	
+		if (direction == PlayerDirection::WEST || direction == PlayerDirection::EAST) {
 			road = session_game_map_->GetHorizontalRoad(point);     // зарос или вернет дорогу, или nullptr
 		}
 		// если игрок смотрит вниз или вверх, полагаем, что будет движение по вертикальной дороге
@@ -380,57 +591,27 @@ namespace game_handler {
 		// то в принципе мы в состоянии спокойно двигаться проверив выход за границы дороги
 		if (road) {
 			// отдаём обработку методу перемещения параллельно дороге
-			return ParallelMovingImpl(player, direction, std::move(position), std::move(delta_pos), road);
+			return PlayerParallelMovingImpl(player, direction, std::move(position), std::move(delta_pos), road);
 		}
 		// если же мы не стоим на требуемой - стоим на дороге перпендикулярной оси движения
 		else {
 			// отдаём обработку методу перемещения перпендикулярно дороге
-			return CrossMovingImpl(player, direction, std::move(position), std::move(delta_pos), road);
+			return PlayerCrossMovingImpl(player, direction, std::move(position), std::move(delta_pos), road);
 		}
 	}
 
-	// проверяет стартовую позицию игрока на предмет совпадения с другими игроками в сессии
-	bool GameSession::CheckStartPositionImpl(PlayerPosition& position) {
+	// выполняет расчёт и запись будущих позиций игроков в игровой сессии
+	bool GameSession::UpdateFuturePlayersPositions(double time) {
 
-		for (const auto& item : session_players_) {
-			// если нашли поцизию совпадающую с запрошенной то выходим с false
-			if (position == item.second.GetPlayerPosition()) {
-				return false;
-			}
+		for (auto& [token, player] : session_players_) {
+			// вызываем метод расчёта будущей позиции игрока
+			// это еще НЕ перемещеие, это намерения о совершаемом в будущем перемещении
+			CalculateFuturePlayerPositionImpl(player, time);
 		}
 		return true;
 	}
 
-	// генерирует на карте новые предметы лута в указанном количестве
-	bool GameSession::GenerateLoot(unsigned count) {
-
-		try
-		{
-			for (unsigned i = 0; i != count; ++i) {
-				// получаем случайный индекс из массива типов лута
-				size_t index = static_cast<size_t>(model::GetRandomInteger(0, static_cast<int>(session_game_map_->GetLootTypesCount())));
-				// на основе индекса создаём новый игровой лут
-				// привязка к неиспользуемым элементам модели закомментирована
-				GameLoot loot{ /*session_game_map_->GetLootType(index), */index, {} };
-
-				// получаем случайную точку на дорогах карты, точки игровой модели обрабатываются целочислеными значениями
-				model::Point position = session_game_map_->GetRandomPosition();
-
-				// чтобы не размещать вот по целочисленной позиции, прибавляем случайное число от минус дельты до плюс дельты дороги
-				loot.pos_.x_ = (position.x + model::GetRandomDoubleRoundOne(-__ROAD_DELTA__, __ROAD_DELTA__));
-				loot.pos_.y_ = (position.y + model::GetRandomDoubleRoundOne(-__ROAD_DELTA__, __ROAD_DELTA__));
-
-				// добавляем в список лута в текущей игровой сессии
-				session_loots_.emplace(session_loots_.size(), std::move(loot));
-			}
-
-			return true;
-		}
-		catch (const std::exception& e)
-		{
-			throw std::runtime_error("GameSession::GenerateLoot(unsigned)::Error\n" + std::string(e.what()));
-		}
-	}
+	
 
 	// -------------------------- class GameHandler --------------------------
 
@@ -475,6 +656,7 @@ namespace game_handler {
 			}
 		}
 	}
+
 	// Сбрасывает и удаляет все активные игровые сессии
 	void GameHandler::ResetGameSessions() {
 		try
@@ -656,6 +838,11 @@ namespace game_handler {
 
 	// Возвращает ответ на запрос по поиску конкретной карты
 	http_handler::Response GameHandler::FindMapResponse(http_handler::StringRequest&& req, std::string_view find_request_line) {
+
+		if (req.method_string() != http_handler::Method::GET && req.method_string() != http_handler::Method::HEAD) {
+			// сюда вставить респонс о недопустимом типе
+			return NotAllowedResponseImpl(std::move(req), http_handler::Method::GET, http_handler::Method::HEAD);
+		}
 
 		// ищем запрошенную карту
 		auto map = game_.FindMap(model::Map::Id{ std::string(find_request_line) });
@@ -888,7 +1075,8 @@ namespace game_handler {
 			if (!have_a_plance) {
 				// если же мест в текущих открытых сессиях НЕ найдено, ну вот нету, значит надо открыть новую
 				ref = instances_.at(map)
-					.emplace_back(std::make_shared<GameSession>(*this, game_.GetLootGenConfig(), map, 200, random_start_position_));
+					.emplace_back(std::make_shared<GameSession>(*this, game_.GetLootGenConfig(), 
+						map, __DEFAULT_SESSIONS_MAX_PLAYERS__, random_start_position_));
 			}
 		}
 
@@ -900,7 +1088,8 @@ namespace game_handler {
 			// c максимумом, для примера, в 200 игроков (см. конструктор GameSession)
 			// тут же получаем шару на неё, и передаем ей управление по вступлению в игру
 			ref = instances_.at(map)
-				.emplace_back(std::make_shared<GameSession>(*this, game_.GetLootGenConfig(), map, 200, random_start_position_));
+				.emplace_back(std::make_shared<GameSession>(*this, game_.GetLootGenConfig(), 
+					map, __DEFAULT_SESSIONS_MAX_PLAYERS__, random_start_position_));
 		}
 
 		// добавляем челика на сервер и принимаем на него указатель
