@@ -1,8 +1,8 @@
 ﻿#pragma once
 
+#include "domain.h"
 #include "json_loader.h"
 #include "boost_json.h"
-#include "collision_handler.h"         // через данный хеддер подключается domain.h
 
 #include <vector>
 #include <memory>
@@ -13,8 +13,6 @@
 #include <unordered_map>
 
 namespace game_handler {
-
-	static const size_t __DEFAULT_SESSIONS_MAX_PLAYERS__ = 200;
 
 	namespace fs = std::filesystem;
 	namespace json = boost::json;
@@ -59,54 +57,22 @@ namespace game_handler {
 	};
 
 	// класс-обработчик текущей игровой сессии
-	class GameSession : public std::enable_shared_from_this<GameSession>, public CollisionProvider {
+	class GameSession : public std::enable_shared_from_this<GameSession> {
 		friend class GameHandler;
 	public:
-
-		/*
-		* Игровая сессия генерирует карту и обрабатывает все игровые события согласно указаниями, получаемым от GameHandler
-		* Количество игроков и игрового лута ограничено. Ограничение игроков связано с разгрузкой сессии, чтобы на карте не было
-		* больше игроков чем требуется (например, нет смысла на 10 кв.м. размещать 10 игроков, они будут друг у друга на голове)
-		* Количество же лута ограничено величной произведения количества игроков, на вместимость их рюкзаков в квадрате.
-		* Смысл в том, что одновременно может так сложиться, что в игре у каждого персонажа полные сумки, но при этом необходимо
-		* сгенерировать новый лут и разместить его на карте, и обязательно с уникальным идентификатором в сессии
-		*/
-
 		GameSession(GameHandler& handler, loot_gen::LootGeneratorConfig config, const model::Map* map, size_t max_players) 
 			: game_handler_(handler)
-			, loot_gen_{ config/*, []() { return model::GetRandomDouble(); }*/ }
+			, loot_gen_{ config, []() { return model::GetRandomDouble(); } }
 			, session_game_map_(map)
-			, players_id_(max_players)
-			, loots_id_(max_players * static_cast<size_t>(
-				std::pow(session_game_map_->GetOnMapBagCapacity(), 2))) {
+			, players_id_(max_players) {
 		}
 		GameSession(GameHandler& handler, loot_gen::LootGeneratorConfig config, const model::Map* map, size_t max_players, bool start_random_position)
 			: game_handler_(handler)
-			, loot_gen_{ config/*, []() { return model::GetRandomDouble(); }*/ }
+			, loot_gen_{ config, []() { return model::GetRandomDouble(); } }
 			, session_game_map_(map)
 			, players_id_(max_players)
-			, loots_id_(max_players * static_cast<size_t>(
-				std::pow(session_game_map_->GetOnMapBagCapacity(), 2)))
 			, random_start_position_(start_random_position) {
 		}
-		
-		/*
-		* Генератор закомментирован для прохождения пайплайна тестов. Используется штатный генератор.
-		* Смотри реализацию класса loot_gen::LootGenerator, у него есть статический выдающий 1.0.
-		* Суть вопроса в том, что мой генератор выдаёт случайное число от 0.0 до 1.0.
-		* Тестовая система загружает нового игрока и запускает четыре больших тика по 5000000 мс.
-		* После чего проверяет, что предмет лута создаётся. Логично что за 4 раза по 5кк мс лут должен появиться.
-		* Мой генератор совершенно нормальным образом может все четыра раза выдать число не превышающее, допустим 0,2.
-		* Таким образом лут сгенерирвоан не будет (см. реализацию loot_gen::LootGenerator::Generate) и ошибки тут нет!
-		* Если бы проверяющая система производила, например 1000 тиков по 5к мс, или 5000 тиков по 1к мс, или 500 тиков по 10к мс
-		* То генератор точно бы выдал число позволяющее создать предмет и спокойно пройти тесты.
-		* А так, ну вот, ну все четыре раза мелочь, свёзды так совпали ¯\_(ツ)_/¯, предмет не сгенерирован, тест завален.
-		*
-		* При реальнном применении сомнительно, что игровой движок будет обновлять состояние раз в 5000 секунд
-		* И честный генератор, выдающий 0.0 -> 1.0, добавит больше гибкости и непредсказуемости в процессе генерации лута
-		* Что в свою очередь добавит интереса самой игре.
-		*/
-
 	protected:
 
 		// задаёт флаг случайной позиции для старта новых игроков
@@ -115,35 +81,22 @@ namespace game_handler {
 		Player* AddPlayer(std::string_view name);
 		// вернуть указатель на игрока в сессии по токену
 		Player* GetPlayer(const Token* token);
+
 		// удалить игрока из игровой сессии
 		bool RemovePlayer(const Token* token);
-
-		/*
-		* Обновляет состояние игры с заданным временем в миллисекундах.
-		* Запускает полный цикл обработки в следующей последовательности:
-		*  1. Расчёт будущих позиций игроков
-		*  2. Расчёт и выполнение ожидаемых при перемещении коллизий
-		*  3. Выполнение перемещения игроков на будущие координаты
-		*  4. Генерация лута на карте
-		*/
+		// обновляет состояние игры с заданным временем в миллисекундах
 		bool UpdateState(int time);
 		// метод добавляет скорость персонажу, вызывается из GameHandler::player_action_response_impl
 		bool MovePlayer(const Token* token, PlayerMove move);
 		// отвечает есть ли в сессии свободное местечко
 		bool CheckFreeSpace();
-
-		// ----------------- блок наследуемых методов CollisionProvider ----------------------------
-
-		// возвращает количество офисов бюро находок на карте игровой сессии
-		size_t OfficesCount() const override;
-		// возвращает офис бюро находок по индексу
-		const model::Office& GetOffice(size_t) const override;
+		
 		// возвращает мапу с игроками в игровой сессии
-		const SessionPlayers& GetPlayers() const override{
+		const SessionPlayers& GetPlayers() const {
 			return session_players_;
 		}
 		// возвращает мапу с лутом в игровой сессии
-		const SessionLoots& GetLoots() const override {
+		const SessionLoots& GetLoots() const {
 			return session_loots_;
 		}
 
@@ -164,41 +117,22 @@ namespace game_handler {
 		GameHandler& game_handler_;                         // ссылка на базовый игровой обработчик
 		loot_gen::LootGenerator loot_gen_;                  // собственный генератор лута игровой сессии
 		const model::Map* session_game_map_;                // указатель на карту игровой модели
-
-		SessionPlayers session_players_;                    // хешированная мапа с игроками
 		std::vector<bool> players_id_;                      // булевый массив индексов игроков
+		SessionPlayers session_players_;                    // хешированная мапа с игроками
 		SessionLoots session_loots_;                        // хешированная мапа с лутом на карте
-		std::vector<bool> loots_id_;                        // булевый массив индексов лута
-		SessionLoots loots_in_bags_;                        // хешированная мапа с лутом в инвентаре игроков
 
 		bool random_start_position_ = true;                 // флаг случайной позиции игрока на старте
 
+		// изменяет координаты игрока при движении параллельно дороге, на которой он стоит
+		bool ParallelMovingImpl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
+		// изменяет координаты игрока при движении перпендикулярно дороге, на которой он стоит
+		bool CrossMovingImpl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
+		// обновляет позицию выбранного игрока в соответствии с его заданной скоростью, направлением и временем в секундах
+		bool UpdatePlayerPosition(Player& player, double time);
 		// проверяет стартовую позицию игрока на предмет совпадения с другими игроками в сессии
 		bool CheckStartPositionImpl(PlayerPosition& position);
-
 		// генерирует на карте новые предметы лута в указанном количестве
-		bool GenerateSessionLootImpl(unsigned count);
-		// выполняет проверку количестав лута на карте и генерацию нового
-		bool UpdateSessionLootsCount(int time);
-
-		// выполняет обновления текущих позиций игроков согласно расчитанных ранее будущих позиций
-		bool UpdateCurrentPlayersPositions();
-		
-		// возвращает предметы в офис бюро находок, удаляет их из инвентаря и начисляет очки
-		bool ReturnLootsToTheOfficeImpl(Player& player);
-		// переносит предмет с указанным id в сумку игрока, удаляет предмет с карты
-		bool PutLootInToTheBag(Player& player, size_t loot_id);
-		// выполняет расчёт коллизий и выполняет их согласно полученому массиву
-		bool HandlePlayersCollisionsActions();
-
-		// изменяет координаты игрока при движении параллельно дороге, на которой он стоит
-		bool PlayerParallelMovingImpl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
-		// изменяет координаты игрока при движении перпендикулярно дороге, на которой он стоит
-		bool PlayerCrossMovingImpl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
-		// обновляет позицию выбранного игрока в соответствии с его заданной скоростью, направлением и временем в секундах
-		bool CalculateFuturePlayerPositionImpl(Player& player, double time);
-		// выполняет расчёт и запись будущих позиций игроков в игровой сессии
-		bool UpdateFuturePlayersPositions(double time);
+		bool GenerateLoot(unsigned count);
 	};
 
 	class MapPtrHasher {

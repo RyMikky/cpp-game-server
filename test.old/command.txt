@@ -3,5 +3,3 @@ $(SolutionDir)/data/config.json $(SolutionDir)static/
 --config-file=../data/config.json --www-root=../static/ --tick-period=100 --test-frame-root=../test/ --randomize-spawn-points
 
 --config-file=../data/config.json --www-root=../static/ --tick-period=2000 --randomize-spawn-points
-
---tick-period=100 --randomize-spawn-points

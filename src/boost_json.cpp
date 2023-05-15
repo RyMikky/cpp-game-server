@@ -25,12 +25,23 @@ namespace json_detail {
 		result.emplace("id", *data->GetId());
 		result.emplace("name", data->GetName());
 
-		result.emplace("roads", detail::GetMapRoads(data));
-		result.emplace("buildings", detail::GetMapBuilds(data));
-		result.emplace("offices", detail::GetMapOffices(data));
+		/*result.emplace("lootTypes", detail::GetMapLootTypes(data));
+
+		auto d = data->GetExtraData("lootTypes");
+		auto json = d->AsArray<boost::json::array>()->Data();*/
+
+		/*result.emplace("lootTypes",
+			data->GetExtraData("lootTypes")->AsArray<boost::json::array>()->Data());*/
+
+		/*result.emplace("lootTypes",
+			data->GetExtraDataAsArray<boost::json::array>("lootTypes")->Data());*/
 
 		result.emplace("lootTypes",
 			data->GetRawExtraDataAs<boost::json::array>("lootTypes"));
+
+		result.emplace("roads", detail::GetMapRoads(data));
+		result.emplace("buildings", detail::GetMapBuilds(data));
+		result.emplace("offices", detail::GetMapOffices(data));
 
 		return json::serialize(result);
 	}
@@ -58,8 +69,8 @@ namespace json_detail {
 	std::string GetSessionPlayerJoin(game_handler::PlayerPtr player) {
 		json::object result;          // базовый ресурс ответа
 
-		result.emplace("authToken", std::string(player->GetToken()));
-		result.emplace("playerId", (int)player->GetId());
+		result.emplace("authToken", std::string(player->GetPlayerToken()));
+		result.emplace("playerId", (int)player->GetPlayerId());
 
 		return json::serialize(result);
 	}
@@ -72,8 +83,8 @@ namespace json_detail {
 		for (game_handler::SPIterator it = begin; it != end; it++) {
 
 			result.emplace(
-				std::to_string(it->second.GetId()),
-				json::object{ {"name", it->second.GetName()} }
+				std::to_string(it->second.GetPlayerId()),
+				json::object{ {"name", it->second.GetPlayerName()} }
 			);
 		}
 
@@ -88,8 +99,8 @@ namespace json_detail {
 		for (const auto& it : players) {
 
 			result.emplace(
-				std::to_string(it.second.GetId()),
-				json::object{ {"name", it.second.GetName()} }
+				std::to_string(it.second.GetPlayerId()),
+				json::object{ {"name", it.second.GetPlayerName()} }
 			);
 		}
 
@@ -101,22 +112,22 @@ namespace json_detail {
 
 		json::object players_list;                  // базовый словарь с данными о игроках
 
-		for (const auto& [token, player] : players) {
+		for (const auto& it : players) {
 
 			json::object player_data;               // объект игрок в котором будут все данные
 
 			json::array pos {                       // данные по позиции
-				player.GetCurrentPosition().x_,
-				player.GetCurrentPosition().y_ };
+				it.second.GetPlayerPosition().x_, 
+				it.second.GetPlayerPosition().y_ };
 
 			json::array speed{                      // данные по скорости
-				player.GetSpeed().xV_,
-				player.GetSpeed().yV_ };
+				it.second.GetPlayerSpeed().xV_,
+				it.second.GetPlayerSpeed().yV_ };
 
 			player_data.emplace("pos", pos);
 			player_data.emplace("speed", speed);
 
-			switch (player.GetDirection())      // данные по направлению
+			switch (it.second.GetPlayerDirection())
 			{
 			default:
 				case game_handler::PlayerDirection::NORTH:
@@ -133,26 +144,20 @@ namespace json_detail {
 					break;
 				break;
 			}
-
-			// загружаем инвентарь игрока
-			player_data.emplace("bag", detail::GetPlayerBag(player));
 			
-			// загружаем данные о очках игрока
-			//player_data.emplace("score", player.GetScore());
-
 			players_list.emplace(
-				std::to_string(player.GetId()), player_data);
+				std::to_string(it.second.GetPlayerId()), player_data);
 		}
 
 		json::object loots_list;                    // базовый словарь с данными о луте в сессии
 
-		for (const auto& [id, loot] : loots) {
+		for (const auto& it : loots) {
 
-			json::array pos { loot.pos_.x_, loot.pos_.y_ };    // данные по позиции
-			json::object loot_data{ {"type", loot.type_}, {"pos", pos} };  // данные по луту
+			json::array pos { it.second.pos_.x_, it.second.pos_.y_ };    // данные по позиции
+			json::object loot_data{ {"type", it.second.type_}, {"pos", pos} };  // данные по луту
 
-			// записываем данные о луте на карте сессии
-			loots_list.emplace(std::to_string(id), loot_data);
+			// записываем данные о луте
+			loots_list.emplace(std::to_string(it.first), loot_data);
 		}
 
 		return json::serialize(json::object{ {"players", players_list}, {"lostObjects", loots_list } });
@@ -174,6 +179,29 @@ namespace json_detail {
 				{"code", code.data()},
 				{"message", message.data()}
 			};
+		}
+
+		// возвращает json-массив с информацией о типах лута по запрошенной карте
+		json::value GetMapLootTypes(const model::Map* data) {
+			json::array result;
+
+			// бежим по массиву типов лута
+			for (auto& loot_type : data->GetLootTypes()) {
+			
+				// записываем параметры типа лута
+				json::object pre_result{
+					{ "name", loot_type.GetName() },
+					{ "file", loot_type.GetFile() },
+					{ "type", loot_type.GetType() },
+					{ "rotation", loot_type.GetRotation() },
+					{ "color", loot_type.GetColor() },
+					{ "scale", loot_type.GetScale() }
+				};
+
+				result.push_back(pre_result);
+			}
+
+			return result;
 		}
 
 		// возвращает json-массив с информацией о офисах по запрошенной карте
@@ -215,7 +243,7 @@ namespace json_detail {
 
 				result.push_back(pre_result);
 			}
-			
+
 			return result;
 		}
 
@@ -241,21 +269,6 @@ namespace json_detail {
 				}
 
 				result.push_back(pre_result);
-			}
-
-			return result;
-		}
-
-		// возвращает json-массив с информацией о инвентаре игрока
-		json::array GetPlayerBag(const game_handler::Player& player) {
-			json::array result;
-
-			for (const auto& item : player.GetBag()) {
-				result.push_back(
-					json::object{
-						{"id", item.index_}, {"type", item.loot_->type_}
-					}
-				);
 			}
 
 			return result;

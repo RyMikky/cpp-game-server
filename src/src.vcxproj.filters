@@ -57,9 +57,6 @@
     <ClCompile Include="loot_generator.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="collision_handler.cpp">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="boost_json.h">
@@ -113,22 +110,11 @@
     <ClInclude Include="extra_data.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="collision_handler.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\data\config.json">
       <Filter>Файлы ресурсов</Filter>
     </None>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="..\test.old\command.txt">
-      <Filter>Файлы ресурсов</Filter>
-    </Text>
-    <Text Include="..\test.old\curl.txt">
-      <Filter>Файлы ресурсов</Filter>
-    </Text>
   </ItemGroup>
 </Project>

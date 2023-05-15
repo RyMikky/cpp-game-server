@@ -4,6 +4,7 @@
 #pragma once
 
 #include "sdk.h"
+#include "model.h"
 #include "player.h"
 // boost.beast будет использовать std::string_view вместо boost::string_view
 #define BOOST_BEAST_USE_STD_STRING_VIEW
@@ -13,6 +14,7 @@
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
+
 
 #include <unordered_map>
 #include <string_view>
@@ -136,8 +138,19 @@ namespace game_handler {
         std::hash<std::string> _hasher;
     };
 
-    using SessionLoots = std::unordered_map<size_t, GameLoot>;
+    struct GameLoot/* : public model::LootType */{
+        
+        GameLoot(/*model::LootType loot_type, */size_t type, PlayerPosition position)
+            : /*model::LootType(loot_type),*/ type_(type), pos_(position) {
+        }
+        // привязка к неиспользуемым элементам модели закомментирована
+
+        size_t type_;                // он же индекс в массиве LootTypes на карте
+        PlayerPosition pos_;         // позиция берется не из модели, а из игрока, так как в модели она в инте, а надо в дабле
+    };
+
     using SessionPlayers = std::unordered_map<const Token*, Player, TokenPtrHasher>;
+    using SessionLoots = std::unordered_map<size_t, GameLoot>;
     using SessionMapper = std::unordered_map<PosPtr, const Token*, PosPtrHasher>;
 
     using SPIterator = std::unordered_map<const game_handler::Token* const, game_handler::Player>::const_iterator;

@@ -135,6 +135,7 @@ namespace model {
 
     /*
     * Конфиг класса данных о луте на карте.
+    * В данной версии кода никак не используется, так как отдано на откуп frontend
     */
     struct LootTypeConfig {
         std::string name;
@@ -143,12 +144,11 @@ namespace model {
         int rotation;
         std::string color;
         double scale;
-        unsigned value;
     };
 
     /*
     * Класс данные о луте на карте.
-    * В данной версии кода используется полноценно, так как из него получаются данные о цене
+    * В данной версии кода никак не используется, так как отдано на откуп frontend
     */
     class LootType {
     public:
@@ -156,69 +156,62 @@ namespace model {
 
         explicit LootType(LootTypeConfig&& config) :
             name_(std::move(config.name)), file_(std::move(config.file)), type_(std::move(config.type)), 
-            rotation_(config.rotation), color_(std::move(config.color)), scale_(config.scale), value_(config.value) {
+            rotation_(config.rotation), color_(std::move(config.color)), scale_(config.scale) {
         }
 
         LootType(std::string&& name, std::string&& file, 
-            std::string&& type, int rotation, std::string&& color, double scale, unsigned value)
+            std::string&& type, int rotation, std::string&& color, double scale)
             : name_(std::move(name)), file_(std::move(file)), 
-            type_(std::move(type)), rotation_(rotation), color_(std::move(color)), scale_(scale), value_(value) {
+            type_(std::move(type)), rotation_(rotation), color_(std::move(color)), scale_(scale) {
         }
 
-        // назначает название типа лута
-        LootType& SetRawName(std::string&&);
-        // назначает путь к файлу типа лута
-        LootType& SetRawFile(std::string&&);
-        // назначает текстовый тип лута
-        LootType& SetRawType(std::string&&);
-        // назначает цвет объекта типа лута
-        LootType& SetRawColor(std::string&&);
-        // назначает поворот объекта типа лута
-        LootType& SetRawRotation(int);
-        // назначает масштаб объекта типа лута
-        LootType& SetRawScale(double);
-        // назначает стоимость типа лута
-        LootType& SetRawValue(unsigned);
+        // назначает название лута
+        LootType& SetName(std::string&&);
+        // назначает путь к файлу лута
+        LootType& SetFile(std::string&&);
+        // назначает тип лута
+        LootType& SetType(std::string&&);
+        // назначает цвет объкета
+        LootType& SetColor(std::string&&);
+        // назначает поворот объекта
+        LootType& SetRotation(int);
+        // назначает масштаб объекта
+        LootType& SetScale(double);
 
-        // возвращает название типа лута
-        const std::string GetRawName() const {
+        // возвращает название лута
+        const std::string GetName() const {
             return name_;
         }
-        // возвращает путь к файлу типа лута
-        const std::string GetRawFile() const {
+        // возвращает путь к файлу лута
+        const std::string GetFile() const {
             return file_;
         }
-        // возвращает текстовый тип лута
-        const std::string GetRawType() const {
+        // возвращает тип лута
+        const std::string GetType() const {
             return type_;
         }
-        // возвращает цвет объекта типа лута
-        const std::string GetRawColor() const {
+        // возвращает цвет объекта
+        const std::string GetColor() const {
             return color_;
         }
-        // возвращает поворот объекта типа лута
-        double GetRawRotation() const {
+        // возвращает текущий поворот объекта
+        double GetRotation() const {
             return rotation_;
         }
-        // возвращает масштаб объекта типа лута
-        double GetRawScale() const {
+        // возвращает текущий масштаб объекта
+        double GetScale() const {
             return scale_;
-        }
-        // возвращает стоимость типа лута
-        unsigned GetRawValue() const {
-            return value_;
         }
         
     private:
         std::string name_ = "";
         std::string file_ = "";
         std::string type_ = "";
-        int rotation_ = -1;
-        std::string color_ = "DUMMY";
+        int rotation_ = 0;
+        std::string color_ = "";
         double scale_ = 0.0;
-        unsigned value_ = 0;
     };
-    
+
     using Roads = std::vector<Road>;
     using Buildings = std::vector<Building>;
     using Offices = std::vector<Office>;
@@ -248,17 +241,6 @@ namespace model {
             // Скорость персонажей на конкретной карте задаёт опциональное поле dogSpeed в соответствующем объекте карты. 
             // Если это поле отсутствует, на карте используется скорость по умолчанию.
         }
-        Map(Id id, std::string name, unsigned bag_capacity) noexcept
-            : id_(std::move(id))
-            , name_(std::move(name))
-            , bag_capacity_(bag_capacity) {
-        }
-        Map(Id id, std::string name, double dog_speed, unsigned bag_capacity) noexcept
-            : id_(std::move(id))
-            , name_(std::move(name))
-            , dog_speed_(dog_speed)
-            , bag_capacity_(bag_capacity) {
-        }
 
         // добавляет одну дорогу на карту
         Map& AddRoad(const Road&);
@@ -276,8 +258,6 @@ namespace model {
         Map& SetBuildings(Buildings&&);
         // устанавливает скорость движения песелей
         Map& SetOnMapSpeed(double);
-        // устанавливает вместимость сумки песелей
-        Map& SetOnMapBagCapacity(unsigned);
         // устанавлиает количество типов лута на карте
         Map& SetLootTypesCount(size_t);
 
@@ -302,16 +282,13 @@ namespace model {
             return offices_;
         }
         // возвращает массив типов лута на карте
+        // на данный момент не используется
         const LootTypes& GetLootTypes() const noexcept {
             return loot_types_;
         }
         // возвращает скорость движения песелей на карте
         double GetOnMapSpeed() const {
             return dog_speed_;
-        }
-        // возвращает вместимость сумок на карте
-        unsigned GetOnMapBagCapacity() const {
-            return bag_capacity_;
         }
 
         // возвращает количество типов лута в массиве
@@ -320,6 +297,7 @@ namespace model {
             //return loot_types_.size();
         }
         // возвращает тип лута по индексу
+        // на данный момент не используется
         LootType GetLootType(size_t) const;
         
         // возвращает случайную позицию на случайно выбранной дороге на карте
@@ -344,7 +322,6 @@ namespace model {
         std::string name_;                                               // Название карты
         Roads roads_;                                                    // Массив с дорогами на карте
         Buildings buildings_;                                            // Массив зданий на карте
-        unsigned bag_capacity_ = 0;                                      // Вместимость пёсьей сумки
         double dog_speed_ = 0.0;                                         // Пёсья скорость перемещения на карте
         size_t loot_types_count_ = 0;                                    // Количество типов лута на карте
 
@@ -383,15 +360,6 @@ namespace model {
         double GetDefaultDogSpeed() const {
             return default_dog_speed_;
         }
-        // устанавливает базовую вместимость сумки песеля
-        void SetDefaultBagCapacity(unsigned capacity) {
-            default_bag_capacity_ = capacity;
-        }
-        // возвращает базовую вместимость сумки песеля
-        unsigned GetDefaultBagCapacity() const {
-            return default_bag_capacity_;
-        }
-
         // устанавливает настройки генератора лута
         void SetLootGenConfig(loot_gen::LootGeneratorConfig&& config) {
             loot_gen_config_ = std::move(config);
@@ -407,9 +375,8 @@ namespace model {
 
         std::vector<Map> maps_;
         MapIdToIndex map_id_to_index_;
-        
+
         double default_dog_speed_;                                       // Базовая пёсья скорость перемещения на картах
-        unsigned default_bag_capacity_ = 3;                              // Базовая вместимость сумки на песеле
         loot_gen::LootGeneratorConfig loot_gen_config_;                  // Файл конфигурации генератора лута
     };
 
