@@ -41,14 +41,14 @@ namespace json_detail {
 		json::value GetDebugArgument(std::string_view argument, std::string_view value);
 		// возвращает json-словарь с информацией по коду и сообщению о ошибке
 		json::value GetErrorValue(std::string_view code, std::string_view message);
-		// возвращает json-массив с информацией о типах лута по запрошенной карте
-		json::value GetMapLootTypes(const model::Map* data);
 		// возвращает json-массив с информацией о офисах по запрошенной карте
 		json::array GetMapOffices(const model::Map* data);
 		// возвращает json-массив с информацией о строениях по запрошенной карте
 		json::array GetMapBuilds(const model::Map* data);
 		// возвращает json-массив с информацией о дорогах по запрошенной карте
 		json::array GetMapRoads(const model::Map* data);
+		// возвращает json-массив с информацией о инвентаре игрока
+		json::array GetPlayerBag(const game_handler::Player& player);
 
 	} // namespace detail
 

@@ -111,19 +111,20 @@ namespace json_loader {
                 model::LootType loot;       // создаём пустышку
 
                 loot // заполняем обязательные элементы, которые должны быть в валидном конфиге
-                    .SetName(std::move(element.at("name").as_string().data()))
-                    .SetFile(std::move(element.at("file").as_string().data()))
-                    .SetType(std::move(element.at("type").as_string().data()))
-                    .SetScale(element.at("scale").as_double());
+                    .SetRawName(std::move(element.at("name").as_string().data()))
+                    .SetRawFile(std::move(element.at("file").as_string().data()))
+                    .SetRawType(std::move(element.at("type").as_string().data()))
+                    .SetRawValue(static_cast<unsigned>(element.at("value").as_int64()))
+                    .SetRawScale(element.at("scale").as_double());
 
                 if (element.as_object().count("color")) {
                     // если есть упоминание о цвете, то записываем его
-                    loot.SetColor(std::move(element.at("color").as_string().data()));
+                    loot.SetRawColor(std::move(element.at("color").as_string().data()));
                 }
 
                 if (element.as_object().count("rotation")) {
                     // если есть упоминание о повороте, то записываем его
-                    loot.SetRotation(static_cast<int>(element.at("rotation").as_int64()));
+                    loot.SetRawRotation(static_cast<int>(element.at("rotation").as_int64()));
                 }
 
                 // записываем данные о луте в карту
@@ -132,7 +133,7 @@ namespace json_loader {
         }
 
         // парсер карт для созданной игровой модели
-        void ParseGameMapsData(model::Game& game, json::value&& maps, double default_dog_speed) {
+        void ParseGameMapsData(model::Game& game, json::value&& maps) {
 
             // начинаем перебирать массив с данными по картам
             for (auto& element : maps.as_array()) {
@@ -151,13 +152,21 @@ namespace json_loader {
                     map.SetOnMapSpeed(element.at("dogSpeed").as_double());
                 }
                 else {
-                    map.SetOnMapSpeed(default_dog_speed);
+                    map.SetOnMapSpeed(game.GetDefaultDogSpeed());
+                }
+
+                // если элемент как словарь имеет запись о вместимости рюкзаков
+                if (element.as_object().count("bagCapacity")) {
+                    // назначаем сеттером вместимость из словаря
+                    map.SetOnMapBagCapacity(static_cast<unsigned>(element.at("bagCapacity").as_uint64()));
+                }
+                else {
+                    map.SetOnMapBagCapacity(game.GetDefaultBagCapacity());
                 }
 
                 // парсим данные по луту, дорогам, домам и офисам
                 // если данных нет, то будет выкинуто исключение, что собственно прекратит работу
-                // парсинг типов лута на данном этапе отключен, так как они не нужны backend-у
-                //ParseMapLootTypesData(map, element.at("lootTypes").as_array());
+                ParseMapLootTypesData(map, element.at("lootTypes").as_array());
                 ParseMapRoadsData(map, element.at("roads").as_array());
                 ParseMapOfficesData(map, element.at("offices").as_array());
                 ParseMapBuildingsData(map, element.at("buildings").as_array());
@@ -166,11 +175,7 @@ namespace json_loader {
                 map.SetLootTypesCount(element.at("lootTypes").as_array().size());
                 // с помощью класса-родителя ExtraDataCollector запоминаем массив с типами лута
                 // при обработке REST API api/v1/maps/{карта} эти данные будут добавленны в вывод
-                /*map.AddExtraData("lootTypes", model::extra_data::ExtraDataType::template_array, std::move(
-                    std::make_shared<model::extra_data::ExtraTemplateArrayData<boost::json::array>>(
-                        std::move(boost::json::array{ element.at("lootTypes").as_array() }))));*/
-
-                map.AddExtraArrayData("lootTypes", std::move(boost::json::array{ element.at("lootTypes").as_array() }));
+                map.AddExtraArrayData("lootTypes", std::move(element.at("lootTypes").as_array()));
 
                 game.AddMap(map);                       // добавляем карту игровой модели
             }
@@ -202,6 +207,12 @@ namespace json_loader {
                 throw std::runtime_error("json_loader::detail::ParseGameBaseConfig::Error::Configuration file lost data {defaultDogSpeed}");
             }
 
+            if (config.count("defaultBagCapacity")) {
+                // назначаем базовую вместимость сумок песелей на картах
+                result.SetDefaultBagCapacity(static_cast<unsigned>(config.at("defaultBagCapacity").as_uint64()));
+                // иначе принимается базовой, равной 3
+            }
+
             if (config.count("lootGeneratorConfig")) {
                 // парсим и назначаем настройки генератора лута
                 result.SetLootGenConfig(std::move(
@@ -215,7 +226,7 @@ namespace json_loader {
 
             if (config.count("maps")) {
                 // выполняем наполнение игровой модели картами
-                detail::ParseGameMapsData(result, std::move(config.at("maps")), result.GetDefaultDogSpeed());
+                detail::ParseGameMapsData(result, std::move(config.at("maps")));
             }
             else {
                 // иначе кидаем исключение, так как эти данные должны быть в обязательном порядке
