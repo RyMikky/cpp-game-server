@@ -22,7 +22,7 @@ namespace json_loader {
 		void ParseMapLootTypesData(model::Map& map, json::value&& loot_types);
 
 		// парсер карт для созданной игровой модели
-		void ParseGameMapsData(model::Game& game, json::value&& maps, double default_dog_speed);
+		void ParseGameMapsData(model::Game& game, json::value&& maps);
 		// парсер настройки карты - настройки генератора лута
 		loot_gen::LootGeneratorConfig ParseGameLootGenConfig(json::value&& config);
 		

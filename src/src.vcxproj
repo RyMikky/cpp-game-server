@@ -20,6 +20,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="boost_json.cpp" />
+    <ClCompile Include="collision_detector.cpp" />
+    <ClCompile Include="collision_handler.cpp" />
     <ClCompile Include="game_handler.cpp" />
     <ClCompile Include="http_server.cpp" />
     <ClCompile Include="json_loader.cpp" />
@@ -36,8 +38,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="boost_json.h" />
+    <ClInclude Include="collision_detector.h" />
+    <ClInclude Include="collision_handler.h" />
     <ClInclude Include="domain.h" />
     <ClInclude Include="extra_data.h" />
+    <ClInclude Include="geom.h" />
     <ClInclude Include="loot_generator.h" />
     <ClInclude Include="options.h" />
     <ClInclude Include="game_handler.h" />
@@ -56,6 +61,10 @@
   <ItemGroup>
     <None Include="..\data\config.json" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\test.old\command.txt" />
+    <Text Include="..\test.old\curl.txt" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

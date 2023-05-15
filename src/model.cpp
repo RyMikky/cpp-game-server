@@ -56,34 +56,45 @@ namespace model {
                 std::max(start_.y, end_.y)) };
     }
 
-    // назначает название лута
-    LootType& LootType::SetName(std::string&& name) {
+    // назначает название типа лута
+    LootType& LootType::SetRawName(std::string&& name) {
         name_ = std::move(name);
         return *this;
     }
-    // назначает путь к файлу лута
-    LootType& LootType::SetFile(std::string&& file) {
+
+    // назначает путь к файлу типа лута
+    LootType& LootType::SetRawFile(std::string&& file) {
         file_ = std::move(file);
         return *this;
     }
-    // назначает тип лута
-    LootType& LootType::SetType(std::string&& type) {
+
+    // назначает текстовый тип лута
+    LootType& LootType::SetRawType(std::string&& type) {
         type_ = std::move(type);
         return *this;
     }
-    // назначает цвет объкета
-    LootType& LootType::SetColor(std::string&& color) {
+
+    // назначает цвет объекта типа лута
+    LootType& LootType::SetRawColor(std::string&& color) {
         color_ = std::move(color);
         return *this;
     }
-    // назначает поворот объекта
-    LootType& LootType::SetRotation(int rotation) {
+
+    // назначает поворот объекта типа лута
+    LootType& LootType::SetRawRotation(int rotation) {
         rotation_ = rotation;
         return *this;
     }
-    // назначает масштаб объекта
-    LootType& LootType::SetScale(double scale) {
+
+    // назначает масштаб объекта типа лута
+    LootType& LootType::SetRawScale(double scale) {
         scale_ = scale;
+        return *this;
+    }
+
+    // назначает стоимость типа лута
+    LootType& LootType::SetRawValue(unsigned value) {
+        value_ = value;
         return *this;
     }
 
@@ -92,11 +103,13 @@ namespace model {
         roads_.emplace_back(road);
         return *this;
     }
+
     // добавляет строение на карту
     Map& Map::AddBuilding(const Building& building) {
         buildings_.emplace_back(building);
         return *this;
     }
+
     // добавляет один офис на карту
     Map& Map::AddOffice(Office office) {
         if (warehouse_id_to_index_.contains(office.GetId())) {
@@ -116,6 +129,7 @@ namespace model {
 
         return *this;
     }
+
     // добавляет один тип лута на карту
     Map& Map::AddLootType(LootType&& loot_type) {
         loot_types_.push_back(std::move(loot_type));
@@ -127,16 +141,25 @@ namespace model {
         roads_ = std::move(roads);
         return *this;
     }
+
     // устанавливает подготовленный массив строений на карту
     Map& Map::SetBuildings(Buildings&& buildings) {
         buildings_ = std::move(buildings);
         return *this;
     }
+
     // устанавливает скорость движения песелей
     Map& Map::SetOnMapSpeed(double speed) {
         dog_speed_ = speed;
         return *this;
     }
+
+    // устанавливает вместимость сумки песелей
+    Map& Map::SetOnMapBagCapacity(unsigned capacity) {
+        bag_capacity_ = capacity;
+        return *this;
+    }
+
     // устанавлиает количество типов лута на карте
     Map& Map::SetLootTypesCount(size_t count) {
         loot_types_count_ = count;
