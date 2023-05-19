@@ -1,9 +1,10 @@
 ﻿#pragma once
 #include "http_server.h"
 #include "resource_handler.h"
-#include "game_handler.h"             // подключит boost_json.h и json_loader.h
-#include "options.h"                  // подключит аргументы запуска
-#include "domain.h"                   // базовый инклюд с разными объявлениями
+#include "time_handler.h"
+#include "serialization_handler.h"             // подключит game_handler.h, boost_json.h, json_loader.h и прочее
+#include "options.h"                           // подключит аргументы запуска
+#include "domain.h"                            // базовый инклюд с разными объявлениями
 
 namespace http_handler {
 
@@ -14,6 +15,7 @@ namespace http_handler {
     namespace game = game_handler;
     namespace fs = std::filesystem;
     namespace net = boost::asio;
+    namespace time = time_handler;
 
     class RequestHandler : public std::enable_shared_from_this<RequestHandler> {
     public:
@@ -21,7 +23,7 @@ namespace http_handler {
             : arguments_(std::move(arguments)), api_strand_(net::make_strand(ioc)) {
             ConfigurationPipeline();
         }
-
+        
         RequestHandler(const RequestHandler&) = delete;
         RequestHandler& operator=(const RequestHandler&) = delete;
 
@@ -37,18 +39,26 @@ namespace http_handler {
         RequestHandler& StartGameTimer(std::chrono::milliseconds period);
         // выключает выполнение автотаймера, выкидывает исключение, если таймер уже выключен
         RequestHandler& StopGameTimer();
+        // выполняет запись данных игрового сервера
+        RequestHandler& SerializeGameData();
+        // выполняет восстановленние данных игрового сервера
+        RequestHandler& DeserializeGameData();
 
     private:
         Strand api_strand_;
         detail::Arguments arguments_;
-        
+
         std::shared_ptr<res::ResourceHandler> resource_ = nullptr;
         std::shared_ptr<game::GameHandler> game_ = nullptr;
-        std::shared_ptr<game::GameTimer> timer_ = nullptr;
+        std::shared_ptr<time::TimeHandler> timer_ = nullptr;
+        std::shared_ptr<game::SerialHandler> serializer_ = nullptr;
 
         bool timer_enable_ = false;              // флаг активации таймера автоизменения состояния
-        bool test_enable_ = false;               // флаг доступа тест-системы к ресурсам и api
+        bool autosave_enable_ = false;           // флаг активации автосохранения состояния
+        //bool test_enable_ = false;               // флаг доступа тест-системы к ресурсам и api
 
+        // метод настройки игрового таймера, генерирует команды для обработки
+        RequestHandler& TimerConfigurationPipeline();
         // базовая функция активации всех элементов вызываемая в конструкторе по переданным параметрам
         RequestHandler& ConfigurationPipeline();
         
@@ -77,9 +87,25 @@ namespace http_handler {
         // возвращает ответ на отчёт о завершении работы тестовой системы
         Response DebugUnitTestsEndResponse(StringRequest&& req);
 
-        template <typename Function>
         // авторизует и возвращает соответствующий ответ по обращению к дебагу
+        template <typename Function>
         Response DebugAuthorizationImpl(StringRequest&& req, Function&& func);
+
+        // ------------------------------ особые функции и обработчики ----------------------------------
+        
+        /*
+        * метод, последовательно выполняющий переданные команды
+        * по сути... костыль ¯\_(ツ)_/¯, чтобы не менять всю архитектуру приложения
+        * не писать новые шаблонные методы в обработчике игровой сессии
+        * используем встроенную в С++ последовательность выполнения операций справа налево
+        * в момент вызова данного метода, происходит выполнение переданных аргументов
+        * сначала выполняет метод returned, который обязательно должен возвращать значение Response
+        * далее выполняется void_func, ничего не возвращающий метод для внутренней обработки
+        * в итоге, после выполнения цепочки вызова возвращается Response
+        * применяется для REST API "/v1/game/tick" и последующей сериализации
+        */
+        template <typename F1, typename F2>
+        Response HandleSpecialCoopMethods(F1&& void_func, F2&& returned);
 
         // ------------------------------ внутренние обработчики базовой системы ------------------------
 
@@ -130,6 +156,23 @@ namespace http_handler {
         // вызываем полученный обработчик
         return func(std::move(req));
     }
+
+    /*
+    * метод, последовательно выполняющий переданные команды
+    * по сути... костыль ¯\_(ツ)_/¯, чтобы не менять всю архитектуру приложения
+    * не писать новые шаблонные методы в обработчике игровой сессии
+    * используем встроенную в С++ последовательность выполнения операций справа налево
+    * в момент вызова данного метода, происходит выполнение переданных аргументов
+    * сначала выполняет метод returned, который обязательно должен возвращать значение Response
+    * далее выполняется void_func, ничего не возвращающий метод для внутренней обработки
+    * в итоге, после выполнения цепочки вызова возвращается Response
+    * применяется для REST API "/v1/game/tick" и последующей сериализации
+    */
+    template <typename F1, typename F2>
+    Response RequestHandler::HandleSpecialCoopMethods(F1&& void_func, F2&& returned) {
+        return Response(std::move(returned));
+    }
+
     template <typename Iterator>
     std::string RequestHandler::ParseRequestTarget(Iterator begin, Iterator end) {
 
@@ -208,26 +251,28 @@ namespace http_handler {
         else if (req.target().substr(0, 11) == "/test_frame"sv && req.target().size() == 11
             || req.target().substr(0, 12) == "/test_frame/"sv) {
 
-            if (test_enable_) {
-                // создаём лямбду с шароварным указателем на экземпляр класса (экземпляр должен быть в куче, иначе все упадет!)
-                // + Callback&&, плюс реквест. Чтобы не создавать экземпляр реквеста (лямбда по дефолту преобразует в const Type
-                // в std::forward указываем конкретный тип и задаем его "mutable"
-                auto handle = [self = shared_from_this(), send, request = std::forward<StringRequest&&>(req)]() mutable {
+            // Старая сквозная тест система полностью отключена и доступ по REST API "/test_frame" закрыт
 
-                    try {
-                        // Этот assert не выстрелит, так как лямбда-функция будет выполняться внутри strand
-                        assert(self->api_strand_.running_in_this_thread());
-                        return send(self->HandleTestRequest(std::forward<StringRequest&&>(request),
-                            { request.target().begin() + 11, request.target().end() }));
-                    }
-                    catch (...) {
-                        send(self->StaticBadRequestResponse(std::forward<StringRequest&&>(request)));
-                    }
-                };
+            //if (test_enable_) {
+            //    // создаём лямбду с шароварным указателем на экземпляр класса (экземпляр должен быть в куче, иначе все упадет!)
+            //    // + Callback&&, плюс реквест. Чтобы не создавать экземпляр реквеста (лямбда по дефолту преобразует в const Type
+            //    // в std::forward указываем конкретный тип и задаем его "mutable"
+            //    auto handle = [self = shared_from_this(), send, request = std::forward<StringRequest&&>(req)]() mutable {
 
-                // важно не забыть задиспатчить всё что происходит в стренде. по сути похоже на футур
-                return net::dispatch(api_strand_, handle);
-            }
+            //        try {
+            //            // Этот assert не выстрелит, так как лямбда-функция будет выполняться внутри strand
+            //            assert(self->api_strand_.running_in_this_thread());
+            //            return send(self->HandleTestRequest(std::forward<StringRequest&&>(request),
+            //                { request.target().begin() + 11, request.target().end() }));
+            //        }
+            //        catch (...) {
+            //            send(self->StaticBadRequestResponse(std::forward<StringRequest&&>(request)));
+            //        }
+            //    };
+
+            //    // важно не забыть задиспатчить всё что происходит в стренде. по сути похоже на футур
+            //    return net::dispatch(api_strand_, handle);
+            //}
 
             // если тестовая система не заявлена в конфигурации и не поднят её флаг, то доступ закрыт
             return send(DebugCommonFailResponse(std::move(req), http::status::bad_request, "badRequest"sv, "Invalid endpoint"sv, ""sv));

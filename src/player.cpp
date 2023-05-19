@@ -4,6 +4,13 @@
 
 namespace game_handler {
 
+    // добавляет +/- дельту к каждому из полей
+    PlayerPosition& PlayerPosition::AddRandomPlusMinusDelta(double delta) {
+        x_ += model::GetRandomDoubleRoundOne(-delta, delta);
+        y_ += model::GetRandomDoubleRoundOne(-delta, delta);
+        return *this;
+    }
+
     bool operator==(const PlayerPosition& lhs, const PlayerPosition& rhs) {
 
         bool check_x = ((std::max(std::abs(lhs.x_), std::abs(rhs.x_))) - 
@@ -40,9 +47,33 @@ namespace game_handler {
         return *this;
     }
 
+    // назначает id игрока
+    Player& Player::SetId(size_t id) {
+        id_ = id;
+        return *this;
+    }
+
+    // назначает имя игрока
+    Player& Player::SetName(std::string_view name) {
+        name_ = name;
+        return *this;
+    }
+
+    // назначает указатель на уникальный токен игрока
+    Player& Player::SetToken(const Token* token) {
+        token_ = token;
+        return *this;
+    }
+
     // назначает вместимость сумки игрока
     Player& Player::SetBagCapacity(unsigned capacity) {
         bag_capacity_ = capacity;
+        return *this;
+    }
+
+    // назначает очки игроку
+    Player& Player::SetScore(unsigned score) {
+        score_ = score;
         return *this;
     }
 

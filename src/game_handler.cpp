@@ -7,72 +7,6 @@ namespace game_handler {
 	namespace fs = std::filesystem;
 	namespace json = boost::json;
 
-	// -------------------------- class GameTimer ----------------------------
-
-	// запускает выполнение таймера
-	GameTimer& GameTimer::Start() {
-		if (!execution_) {
-			execution_ = true;
-			sys::error_code error_code;
-			ExecutionImpl(error_code);
-		}
-		return *this;
-	}
-
-	// останавливает выполнение таймера
-	GameTimer& GameTimer::Stop() {
-		if (execution_) {
-			execution_ = false;
-		}
-		return *this;
-	}
-
-	// назначает новый временной интервал таймера
-	GameTimer& GameTimer::SetPeriod(std::chrono::milliseconds period) {
-		if (!execution_) {
-			period_ = period;
-			return *this;
-		}
-
-		throw std::runtime_error("GameTimer::SetPeriod::Error::Timer execution flag is \"true\"");
-	}
-
-	// назначение новой функции для выполнения по таймеру
-	GameTimer& GameTimer::SetFunction(Function&& function) {
-		if (!execution_) {
-			function_ = std::move(function);
-			return *this;
-
-		}
-		throw std::runtime_error("GameTimer::SetFunction::Error::Timer execution flag is \"true\"");
-	}
-
-	// основная имплементация выполнения таймера
-	void GameTimer::ExecutionImpl(sys::error_code ec) {
-		// выполнение начинается только после установки флага о начале выполнения
-		if (execution_) {
-			try
-			{
-				timer_.async_wait(
-					net::bind_executor(api_strand_, [self = shared_from_this()](sys::error_code ec) {
-						// вызываем выполнение требуемой функции
-						self->function_(self->period_);
-						// переносим таймер на время периода повторения
-						self->timer_.expires_from_now(self->period_);
-						// снова вызываем метод выполнения
-						self->ExecutionImpl(ec);
-					}));
-			}
-			catch (const std::exception& e)
-			{
-				throw std::runtime_error("GameTimer::ExecutionImpl::Error\n" + std::string(e.what()));
-			}
-		}
-		else {
-			timer_.cancel();            // если флаг выполнения снят, то останавливаем таймер
-		}
-	}
-
 	// -------------------------- class GameSession --------------------------
 	
 	// задаёт флаг случайной позиции для старта новых игроков
@@ -86,13 +20,14 @@ namespace game_handler {
 		// смотрим есть ли место в текущей игровой сессии
 		auto id = std::find(players_id_.begin(), players_id_.end(), false);
 		if (id != players_id_.end()) {
+
 			// если место есть, то запрашиваем уникальный токен
 			const Token* player_token = game_handler_.GetUniqueToken(shared_from_this());
-			// запрашиваем стартовую точку первой дороги
-			model::Point point = session_game_map_->GetFirstRoadStartPosition();
+			// берем свободный уникальный иденнтификатор
+			size_t unique_id = static_cast<size_t>(std::distance(players_id_.begin(), id));
 
 			// заготовка под позицию установки нового игрока
-			PlayerPosition position{ static_cast<double>(point.x), static_cast<double>(point.y) };
+			PlayerPosition position{ session_map_->GetFirstRoadStartPosition() };
 
 			// если активирован флаг получения случайной позиции на старте иначе будет старт на стартовой точке первой дороги
 			if (random_start_position_) {
@@ -101,26 +36,16 @@ namespace game_handler {
 				while (find_place)
 				{
 					// спрашиваем у карты случайную точку на какой-нибудь дороге
-					point = session_game_map_->GetRandomPosition();
-					// переводим точку в позицию
-					position.x_ = point.x;
-					position.y_ = point.y;
+					position = session_map_->GetRandomPosition();
 					// проверяем на совпадение позиции с уже имеющимися игроками и инвертируем вывод метода
 					find_place = !CheckStartPositionImpl(position);
 				}
 			}
 			
-			// создаём игрока в текущей игровой сессии
-			session_players_[player_token] = std::move(
-				Player{ 
-					static_cast<size_t>((std::distance(players_id_.begin(), id))),
-					name, player_token, session_game_map_->GetOnMapBagCapacity() }
-					.SetCurrentPosition(std::move(position))               // назначаем стартовую позицию
-					.SetDirection(PlayerDirection::NORTH)                  // назначаем дефолтное направление взгляда
-					.SetSpeed({ 0, 0 }));                            // назначаем стартовую скорость
-					
-			// делаем пометку в булевом массиве
-			*id = true;
+			AddPlayerImpl(unique_id, name, player_token, session_map_->GetOnMapBagCapacity())
+				.SetCurrentPosition(std::move(position))         // назначаем стартовую позицию
+				.SetDirection(PlayerDirection::NORTH)                   // назначаем дефолтное направление взгляда
+				.SetSpeed({ 0, 0 });                              // назначаем стартовую скорость
 
 			// возвращаем игрока по токену
 			return GetPlayer(player_token);
@@ -177,14 +102,15 @@ namespace game_handler {
 			// 4. Генерация лута на карте
 			UpdateSessionLootsCount(time);
 
-			// запрашиваем количество лута для генерации
-			auto new_loot_count = loot_gen_.Generate(
-				std::chrono::milliseconds(time), 
-				static_cast<unsigned>(session_loots_.size()), 
-				static_cast<unsigned>(session_players_.size()));
+			//// запрашиваем количество лута для генерации
+			//auto new_loot_count = loot_gen_.Generate(
+			//	std::chrono::milliseconds(time), 
+			//	static_cast<unsigned>(session_loots_.size()), 
+			//	static_cast<unsigned>(session_players_.size()));
 
-			// при успешной генерации исключений не будет, и генерация вернет true
-			return (new_loot_count > 0) ? GenerateSessionLootImpl(new_loot_count) : true;
+			//// при успешной генерации исключений не будет, и генерация вернет true
+			//return (new_loot_count > 0) ? GenerateSessionLootImpl(new_loot_count) : true;
+			return true;
 		}
 		catch (const std::exception& e)
 		{
@@ -198,19 +124,19 @@ namespace game_handler {
 		switch (move)
 		{
 		case game_handler::PlayerMove::UP: // верх скорость {0, -speed}
-			GetPlayer(token)->SetSpeed(0, -session_game_map_->GetOnMapSpeed()).SetDirection(PlayerDirection::NORTH);
+			GetPlayer(token)->SetSpeed(0, -session_map_->GetOnMapSpeed()).SetDirection(PlayerDirection::NORTH);
 			return true;
 
 		case game_handler::PlayerMove::DOWN: // вниз скорость {0, speed}
-			GetPlayer(token)->SetSpeed(0, session_game_map_->GetOnMapSpeed()).SetDirection(PlayerDirection::SOUTH);
+			GetPlayer(token)->SetSpeed(0, session_map_->GetOnMapSpeed()).SetDirection(PlayerDirection::SOUTH);
 			return true;
 
 		case game_handler::PlayerMove::LEFT: // влево скорость {-speed, 0}
-			GetPlayer(token)->SetSpeed(-session_game_map_->GetOnMapSpeed(), 0).SetDirection(PlayerDirection::WEST);
+			GetPlayer(token)->SetSpeed(-session_map_->GetOnMapSpeed(), 0).SetDirection(PlayerDirection::WEST);
 			return true;
 
 		case game_handler::PlayerMove::RIGHT: // влево скорость {speed, 0}
-			GetPlayer(token)->SetSpeed(session_game_map_->GetOnMapSpeed(), 0).SetDirection(PlayerDirection::EAST);
+			GetPlayer(token)->SetSpeed(session_map_->GetOnMapSpeed(), 0).SetDirection(PlayerDirection::EAST);
 			return true;
 
 		case game_handler::PlayerMove::STAY:
@@ -237,16 +163,25 @@ namespace game_handler {
 
 	// возвращает количество офисов бюро находок на карте игровой сессии
 	size_t GameSession::OfficesCount() const {
-		return session_game_map_->GetOffices().size();
+		return session_map_->GetOffices().size();
 	}
+
 	// возвращает офис бюро находок по индексу
 	const model::Office& GameSession::GetOffice(size_t index) const {
 		if (index < OfficesCount()) {
-			return session_game_map_->GetOffices()[index];
+			return session_map_->GetOffices()[index];
 		}
 		else {
 			throw std::out_of_range("game_handler::GameSession::GetOffice(index)::Error::Index is out of range");
 		}
+	}
+
+	// добавляет нового игрока на карту
+	Player& GameSession::AddPlayerImpl(size_t id, std::string_view name, const Token* token, unsigned capacity) {
+		// добавляем игрока в базу
+		session_players_[token] = std::move(Player{ id,name, token, capacity });
+		players_id_[id] = true;                            // поднимаем флаг на массиве индексов
+		return session_players_.at(token);                // возвращаем созданного игрока
 	}
 
 	// проверяет стартовую позицию игрока на предмет совпадения с другими игроками в сессии
@@ -261,8 +196,16 @@ namespace game_handler {
 		return true;
 	}
 
+	// генерирует лут с заданым типом, идентификатором и позицией
+	bool GameSession::GenerateSessionLootImpl(size_t type, size_t id, PlayerPosition pos) {
+		session_loots_.emplace(id, std::move(
+			GameLoot{ session_map_->GetLootType(type), type, id, pos }));
+		loots_id_[id] = true;
+
+		return true;
+	}
 	// генерирует на карте новые предметы лута в указанном количестве
-	bool GameSession::GenerateSessionLootImpl(unsigned count) {
+	bool GameSession::GenerateSessionLoots(unsigned count) {
 
 		try
 		{
@@ -276,34 +219,41 @@ namespace game_handler {
 					// количество лута ограничено, см. конструктор игровой сессии
 
 					// получаем количество типов лута карты
-					int loot_types_count = static_cast<int>(session_game_map_->GetLootTypesCount());
+					int loot_types_count = static_cast<int>(session_map_->GetLootTypesCount());
 
 					if (loot_types_count != 0) {
 						// дальше генерируем если вообще есть какой-то лут, который может быть сгенерирован
 
 						// получаем случайный индекс из массива типов лута
-						size_t index = static_cast<size_t>(model::GetRandomInteger(0, loot_types_count - 1));
-
-						// на основе индекса создаём новый игровой лут
-						GameLoot loot{ session_game_map_->GetLootType(index), index, {} };
-						// получаем случайную точку на дорогах карты, точки игровой модели обрабатываются целочислеными значениями
-						model::Point position = session_game_map_->GetRandomPosition();
-
+						size_t type = static_cast<size_t>(model::GetRandomInteger(0, loot_types_count - 1));
+						// получаем числовое обозначение id для нового предмета
+						size_t unique_id = static_cast<size_t>(std::distance(loots_id_.begin(), id));
+						// получаем случайную позицию на карте и сразу делаем из неё позицию в сессии
+						PlayerPosition position{ session_map_->GetRandomPosition() };
 						// чтобы не размещать вот по целочисленной позиции, прибавляем случайное число от минус дельты до плюс дельты дороги
 						// ВРЕМЕННО ОТКЛЮЧЕНО, чтобы упростить тестирование сбора предметов
+						//position.AddRandomPlusMinusDelta(__ROAD_DELTA__);
+
+						// отправляем на генерацию
+						GenerateSessionLootImpl(type, unique_id, position);
+
+						//// на основе индекса создаём новый игровой лут
+						//GameLoot loot{ session_map_->GetLootType(type), type, unique_id, {} };
+						//// получаем случайную точку на дорогах карты, точки игровой модели обрабатываются целочислеными значениями
+						//model::Point position = session_map_->GetRandomPosition();
+
 						//loot.pos_.x_ = (position.x + model::GetRandomDoubleRoundOne(-__ROAD_DELTA__, __ROAD_DELTA__));
 						//loot.pos_.y_ = (position.y + model::GetRandomDoubleRoundOne(-__ROAD_DELTA__, __ROAD_DELTA__));
 
-						loot.pos_.x_ = position.x;
-						loot.pos_.y_ = position.y;
+						/*loot.pos_.x_ = position.x;
+						loot.pos_.y_ = position.y;*/
 
-						// добавляем в список лута в текущей игровой сессии
-						// уникальным индексом будет как и в случае с игроком, индекс в булевом массиве
-						session_loots_.emplace(
-							static_cast<size_t>(std::distance(loots_id_.begin(), id)), std::move(loot));
+						//// добавляем в список лута в текущей игровой сессии
+						//// уникальным индексом будет как и в случае с игроком, индекс в булевом массиве
+						//session_loots_.emplace(unique_id, std::move(loot));
 
-						// поднинмаем флаг в булевом массиве по занятой позиции
-						*id = true;
+						//// поднинмаем флаг в булевом массиве по занятой позиции
+						//*id = true;
 					}
 				}
 			}
@@ -328,7 +278,7 @@ namespace game_handler {
 			static_cast<unsigned>(session_players_.size()));
 
 		// вызываем генерацию нового лута
-		return GenerateSessionLootImpl(new_loot_count);
+		return GenerateSessionLoots(new_loot_count);
 	}
 
 	// выполняет обновления текущих позиций игроков согласно расчитанных ранее будущих позиций
@@ -580,11 +530,11 @@ namespace game_handler {
 		// в зависимости от нашего направления запрашиваем дорогу
 		// если игрок смотрит влево или вправо, полагаем, что будет движение по горизонтальной дороге
 		if (direction == PlayerDirection::WEST || direction == PlayerDirection::EAST) {
-			road = session_game_map_->GetHorizontalRoad(point);     // зарос или вернет дорогу, или nullptr
+			road = session_map_->GetHorizontalRoad(point);     // зарос или вернет дорогу, или nullptr
 		}
 		// если игрок смотрит вниз или вверх, полагаем, что будет движение по вертикальной дороге
 		else if (direction == PlayerDirection::NORTH || direction == PlayerDirection::SOUTH) {
-			road = session_game_map_->GetVerticalRoad(point);       // зарос или вернет дорогу, или nullptr
+			road = session_map_->GetVerticalRoad(point);       // зарос или вернет дорогу, или nullptr
 		}
 
 		// тут важный момент, если мы стоим на требуемой для движения дороге,
@@ -618,6 +568,27 @@ namespace game_handler {
 	size_t MapPtrHasher::operator()(const model::Map* map) const noexcept {
 		// Возвращает хеш значения, хранящегося внутри map
 		return _hasher(map->GetName()) + _hasher(*(map->GetId()));
+	}
+
+	// создаёт игровую сессию с указанным идентификатором и названием карты
+	GameSessionRestoreContext& GameHandler::RestoreGameSession(size_t session_id, std::string_view map_id) {
+
+		// ищем запрошенную карту
+		auto map = game_.FindMap(
+			model::Map::Id{ std::string(map_id)});
+
+		if (map == nullptr) {
+			// если карта не найдена, то кидаем исключение
+			throw std::invalid_argument("GameHandler::RestoreSessionFromBackUp::Error::No map with id {" + std::string(map_id) + "}");
+		}
+
+		if (!instances_.count(map)) {
+			// если нет инстанса под данную карту добавляем указатель и создаём инстанс со списком сессий
+			instances_.insert(std::make_pair(map, GameInstance()));
+		}
+
+		// создаём сессию, возвращаемое зачение не используем, так как вся работа будет идти через главный обработчик
+		return restore_context_.SetRestoredGameSession(MakeNewGameSessoin(session_id, map));
 	}
 
 	// Выполняет обновление всех открытых игровых сессий по времени
@@ -663,6 +634,7 @@ namespace game_handler {
 		{
 			instances_.clear();            // понадеемся на умное удаление в шаред поинтерах
 			tokens_list_.clear();          // как только все шары самоуничтожатся, сессии прекратят существовать
+			sessions_list_.clear();
 		}
 		catch (const std::exception& e)
 		{
@@ -881,11 +853,22 @@ namespace game_handler {
 		return response;
 	}
 
+	
+
+	// возвращает уже существующий токен по строковому представлению
+	const Token* GameHandler::GetCreatedToken(const std::string& token) {
+		if (tokens_list_.count(Token{ token })) {
+			return &(tokens_list_.find(Token{ token })->first);
+		}
+		return nullptr;
+	}
+
 	const Token* GameHandler::GetUniqueToken(std::shared_ptr<GameSession> session) {
 		std::lock_guard func_lock(mutex_);
 		return GetUniqueTokenImpl(session);
 	}
 
+	// возвращает уникальный токен после генерации
 	const Token* GameHandler::GetUniqueTokenImpl(std::shared_ptr<GameSession> session) {
 
 		bool isUnique = true;           // создаём реверсивный флаг
@@ -899,7 +882,18 @@ namespace game_handler {
 			isUnique = tokens_list_.count(unique_token);
 		}
 
-		auto insert = tokens_list_.insert({ unique_token,  session });
+		return AddUniqueTokenImpl(std::move(unique_token), session);
+	}
+
+	// добавляет конкретный токен с указателем на игровую сессию
+	const Token* GameHandler::AddUniqueTokenImpl(const std::string& unique_token, std::shared_ptr<GameSession> session) {
+		auto insert = tokens_list_.insert({ Token{unique_token},  session });
+		return &(insert.first->first);
+	}
+
+	// добавляет конкретный токен с указателем на игровую сессию
+	const Token* GameHandler::AddUniqueTokenImpl(Token&& unique_token, std::shared_ptr<GameSession> session) {
+		auto insert = tokens_list_.insert({ std::move(unique_token),  session });
 		return &(insert.first->first);
 	}
 
@@ -920,6 +914,34 @@ namespace game_handler {
 		else {
 			return false;
 		}
+	}
+
+	// возвращает свободный уникальный идентификатор игровой сессии,
+	// применяется при созданнии новых игровых сессий
+	// Внимание! Метод не ставит флаг true в массиве!
+	std::optional<size_t> GameHandler::GetNewUniqueSessionId() {
+
+		// ищем свободный номер для игровой сессии
+		auto id = std::find(sessions_id_.begin(), sessions_id_.end(), false);
+
+		if (id == sessions_id_.end()) {
+			// если ничего не нашли то возвращаем пустышку
+			return std::nullopt;
+		}
+
+		return static_cast<size_t>((std::distance(sessions_id_.begin(), id)));
+	}
+	// создаёт новую игровую сессию по заданной карте с назначеным id
+	std::shared_ptr<GameSession> GameHandler::MakeNewGameSessoin(size_t id, const model::Map* map) {
+
+		auto ref = instances_.at(map)
+			.emplace_back(std::make_shared<GameSession>(id, *this,
+				game_.GetLootGenConfig(), map, __DEFAULT_SESSIONS_MAX_PLAYERS__, random_start_position_));
+
+		sessions_list_.emplace(id, ref);                   // сохраняем данные в массиве быстрого поиска 
+		sessions_id_[id] = true;                           // закрываем флаг, чтобы иметь идентификатор
+
+		return ref;
 	}
 
 	// Возвращает ответ на запрос по изменению состояния игровой сессии со временем
@@ -1073,23 +1095,55 @@ namespace game_handler {
 
 			// если место было найдено, то ничего делать не надо - ref у нас есть, ниже по коду будет добавлен челик и создан ответ
 			if (!have_a_plance) {
+				
 				// если же мест в текущих открытых сессиях НЕ найдено, ну вот нету, значит надо открыть новую
-				ref = instances_.at(map)
-					.emplace_back(std::make_shared<GameSession>(*this, game_.GetLootGenConfig(), 
-						map, __DEFAULT_SESSIONS_MAX_PLAYERS__, random_start_position_));
+				std::lock_guard id_lock_(mutex_);                                          // закроем мьютекс на всякий пожарный
+				auto new_session_id = GetNewUniqueSessionId();            // забираем себе новый id для сессии
+
+				if (new_session_id.has_value()) {
+					// если удалось получить идентификатор то создаём новую сессию
+					ref = MakeNewGameSessoin(new_session_id.value(), map);
+					//ref = instances_.at(map)
+					//	.emplace_back(std::make_shared<GameSession>(new_session_id.value(), *this, 
+					//		game_.GetLootGenConfig(), map, __DEFAULT_SESSIONS_MAX_PLAYERS__, random_start_position_));
+
+					//sessions_list_.emplace(new_session_id.value(), ref);     // сохраняем данные в массиве быстрого поиска 
+					//sessions_id_[new_session_id.value()] = true;                           // закрываем флаг, чтобы иметь идентификатор
+				}
+				else {
+					// если местоф нет, то скажем - увы и ах
+					return CommonFailResponseImpl(std::move(req), 
+						http::status::service_unavailable, "noPlace", "GameServer has no free place");
+				}
 			}
 		}
 
 		// если нет ни одной открытой сессии на данной карте
 		else {
-			// добавляем указатель и создаём инстанс со списком сессий
-			instances_.insert(std::make_pair(map, GameInstance()));
-			// так как у нас еще нет никакие сессий то тупо создаём новую внутри 
-			// c максимумом, для примера, в 200 игроков (см. конструктор GameSession)
-			// тут же получаем шару на неё, и передаем ей управление по вступлению в игру
-			ref = instances_.at(map)
-				.emplace_back(std::make_shared<GameSession>(*this, game_.GetLootGenConfig(), 
-					map, __DEFAULT_SESSIONS_MAX_PLAYERS__, random_start_position_));
+			std::lock_guard id_lock_(mutex_);                                          // закроем мьютекс на всякий пожарный
+			auto new_session_id = GetNewUniqueSessionId();            // забираем себе новый id для сессии
+
+			if (new_session_id.has_value()) {
+				// добавляем указатель и создаём инстанс со списком сессий
+				instances_.insert(std::make_pair(map, GameInstance()));
+				// создаём новую сессию
+				ref = MakeNewGameSessoin(new_session_id.value(), map);
+
+				//// так как у нас еще нет никаких сессий то тупо создаём новую внутри 
+				//// c максимумом, для примера, в 200 игроков (см. конструктор GameSession)
+				//// тут же получаем шару на неё, и передаем ей управление по вступлению в игру
+				//ref = instances_.at(map)
+				//	.emplace_back(std::make_shared<GameSession>(new_session_id.value(), *this, 
+				//		game_.GetLootGenConfig(),map, __DEFAULT_SESSIONS_MAX_PLAYERS__, random_start_position_));
+
+				//sessions_list_.emplace(new_session_id.value(), ref);     // сохраняем данные в массиве быстрого поиска 
+				//sessions_id_[new_session_id.value()] = true;                           // закрываем флаг, чтобы иметь идентификатор
+			}
+			else {
+				// если местоф нет, то скажем - увы и ах
+				return CommonFailResponseImpl(std::move(req),
+					http::status::service_unavailable, "noPlace", "GameServer has no free place");
+			}
 		}
 
 		// добавляем челика на сервер и принимаем на него указатель
@@ -1133,6 +1187,50 @@ namespace game_handler {
 		response.prepare_payload();
 
 		return response;
+	}
+
+
+	// назначает игровую сессию
+	GameSessionRestoreContext& GameSessionRestoreContext::SetRestoredGameSession(std::shared_ptr<GameSession> session) {
+		session_ = session;
+		return *this;
+	}
+
+	// воссоздаёт игрового персонажа
+	GameHandler& GameSessionRestoreContext::RestoreGamePlayer(const SerializedPlayer& player) {
+		
+		// восстанавливаем уникальный токен игрока
+		auto token = game_.AddUniqueTokenImpl(player.GetToken(), session_);
+		// воссоздаём игрока из полученных данных и токена
+		session_->AddPlayerImpl(player.GetId(), player.GetName(), token, player.GetBagCapacity())
+			.SetCurrentPosition(std::move(player.GetCurrentPosition()))
+			.SetFuturePosition(std::move(player.GetFuturePosition()))
+			.SetDirection(std::move(player.GetDirection()))
+			.SetSpeed(std::move(player.GetSpeed()))
+			.SetScore(player.GetScore());
+
+		for (size_t i = 0; i != player.GetLootCount(); ++i) {
+			// запрашиваем восстанновление лута в инвентаре
+			RestoreGameLoot(player.GetLootByIndex(i));
+		}
+
+		return game_;
+	}
+
+	// воссоздаёт игровой лут
+	GameHandler& GameSessionRestoreContext::RestoreGameLoot(const SerializedLoot& loot) {
+		// запрашиваем генерацию лута по заданым параметрам
+		session_->GenerateSessionLootImpl(loot.GetType(), loot.GetId(), loot.GetPosition());
+		// если лут лежал у игрока в инветаре
+		if (loot.GetToken() != "onMap") {
+			// запрашиваем размещение лута в интвентаре конкретного игрока
+			// к моменту запроса на восстаовлеие лута, игроки должны быть восстановлены
+			session_->PutLootInToTheBag(
+				*(session_->GetPlayer(game_.GetCreatedToken(loot.GetToken()))), loot.GetId()
+			);
+		}
+		
+		return game_;
 	}
 	
 	namespace detail {

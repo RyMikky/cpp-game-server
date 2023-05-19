@@ -14,11 +14,17 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/serialization/vector.hpp>
+
 #include <unordered_map>
 #include <string_view>
 #include <filesystem>
-#include <variant>
+#include <stdexcept>
 #include <optional>
+#include <variant>
+#include <vector>
 #include <memory>
 #include <deque>
 
@@ -141,5 +147,220 @@ namespace game_handler {
     using SessionMapper = std::unordered_map<PosPtr, const Token*, PosPtrHasher>;
 
     using SPIterator = std::unordered_map<const game_handler::Token* const, game_handler::Player>::const_iterator;
- 
+
+	static const std::string __DEFAULT_BACKUP_FILE__ = "../game_backup.gsa";
+
+	// класс сериазиации игровой позиции
+	class SerializitedPlayerPosition {
+	public:
+		SerializitedPlayerPosition() = default;
+		explicit SerializitedPlayerPosition(const PlayerPosition& pos)
+			: x_(pos.x_), y_(pos.y_) {
+		}
+
+		[[nodiscard]] PlayerPosition Restore() const {
+			return { x_, y_ };
+		}
+
+		template <typename Archive>
+		void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {
+			ar& x_;
+			ar& y_;
+		}
+
+	private:
+		double x_ = 0.0;
+		double y_ = 0.0;
+	};
+
+	// класс сериализации игровой скорости
+	class SerializitedPlayerSpeed {
+	public:
+		SerializitedPlayerSpeed() = default;
+		explicit SerializitedPlayerSpeed(const PlayerSpeed& speed)
+			: x_(speed.xV_), y_(speed.yV_) {
+		}
+
+		[[nodiscard]] PlayerSpeed Restore() const {
+			return { x_, y_ };
+		}
+
+		template <typename Archive>
+		void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {
+			ar& x_;
+			ar& y_;
+		}
+
+	private:
+		double x_ = 0.0;
+		double y_ = 0.0;
+	};
+
+	// класс сериализации игрового направления
+	class SerializitedPlayerDirection {
+	public:
+		SerializitedPlayerDirection() = default;
+		explicit SerializitedPlayerDirection(PlayerDirection dir)
+			: dir_(static_cast<size_t>(dir)) {
+		}
+
+		PlayerDirection Restore() const {
+			return static_cast<PlayerDirection>(dir_);
+		}
+
+		template <typename Archive>
+		void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {
+			ar& dir_;
+		}
+
+	private:
+		size_t dir_ = 0;
+	};
+
+	// класс сериализации игрового лута
+	class SerializedLoot {
+	public:
+		SerializedLoot() = default;
+		SerializedLoot(const GameLoot& loot)
+			: type_(loot.type_), id_(loot.id_), pos_(SerializitedPlayerPosition(loot.pos_)) {
+			if (loot.player_ != nullptr) {
+				token_ = loot.player_->GetToken();
+			}
+		}
+
+		/*
+		* Так как класс лута сложный и имеет разные зависимости, то у него нет метода Restore
+		* Вместо этого имеются геттеры, чтобы обработчик смог корректно восстановить связные данные
+		*/
+
+		// возвращает тип лута
+		size_t GetType() const {
+			return type_;
+		}
+		// возвращает id лута
+		size_t GetId() const {
+			return id_;
+		}
+		// возвращает позицию лута на карте
+		PlayerPosition GetPosition() const {
+			return pos_.Restore();
+		}
+		// возвращает токен игрока, если находится в инвентаре, иначе возвращает значение по умолчанию "onMap"
+		std::string GetToken() const {
+			return token_;
+		}
+
+		template <typename Archive>
+		void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {
+			ar& type_;
+			ar& id_;
+			ar& pos_;
+			ar& token_;
+		}
+
+	private:
+		size_t type_ = 0;
+		size_t id_ = 0;
+		SerializitedPlayerPosition pos_;
+		std::string token_ = "onMap";
+	};
+
+	// класс сериализации игрока
+	class SerializedPlayer {
+	public:
+		SerializedPlayer() = default;
+		explicit SerializedPlayer(const Player& player)
+			: id_(player.GetId()), name_(player.GetName()), token_(player.GetToken())
+			, capacity_(static_cast<size_t>(player.GetBagCapacity()))
+			, score_(static_cast<size_t>(player.GetScore()))
+			, loot_(MakeLootVector(player))
+			, cur_pos_(SerializitedPlayerPosition{ player.GetCurrentPosition() })
+			, fut_pos_(SerializitedPlayerPosition{ player.GetFuturePosition() })
+			, dir_(SerializitedPlayerDirection{ player.GetDirection() })
+			, speed_(SerializitedPlayerSpeed{ player.GetSpeed() }) {
+		}
+
+		/*
+		* Так как класс игрока сложный, имеет сложную цепочку зависимостей, то у него нет метода Restore
+		* Вместо этого имеются геттеры, чтобы обработчик смог корректно восстановить связные данные
+		*/
+
+		// возвращает id сессии
+		size_t GetId() const {
+			return id_;
+		}
+		// возвращает имя игрока
+		std::string GetName() const {
+			return name_;
+		}
+		// возвращает строковое представление токена игрока
+		std::string GetToken() const {
+			return token_;
+		}
+		// возвращает вместимость сумок игрока
+		unsigned GetBagCapacity() const {
+			return static_cast<unsigned>(capacity_);
+		}
+		// возвращает количество очков игрока
+		unsigned GetScore() const {
+			return static_cast<unsigned>(score_);
+		}
+		// возвращает действительное количество лута в инвентаре игрока
+		size_t GetLootCount() const {
+			return loots_count_;
+		}
+		// возвращает единицу лута по индексу
+		const SerializedLoot& GetLootByIndex(size_t) const;
+		// возвращает текущую позицию игрока
+		PlayerPosition GetCurrentPosition() const {
+			return cur_pos_.Restore();
+		}
+		// возвращает будущую позицию игрока
+		PlayerPosition GetFuturePosition() const {
+			return fut_pos_.Restore();
+		}
+		// возвращает направление игрока
+		PlayerDirection GetDirection() const {
+			return dir_.Restore();
+		}
+		// возвращает скорость игрока
+		PlayerSpeed GetSpeed() const {
+			return speed_.Restore();
+		}
+
+		template <typename Archive>
+		void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {
+			ar& id_;
+			ar& name_;
+			ar& token_;
+			ar& capacity_;
+			ar& score_;
+			ar& loots_count_;
+			ar& loot_;
+
+			ar& cur_pos_;
+			ar& fut_pos_;
+			ar& dir_;
+			ar& speed_;
+		}
+
+	private:
+		size_t id_ = 0;
+		std::string name_ = "";
+		std::string token_ = "";
+		size_t capacity_ = 0;
+		size_t score_ = 0;
+		size_t loots_count_ = 0;
+		std::vector<SerializedLoot> loot_;
+
+		SerializitedPlayerPosition cur_pos_;
+		SerializitedPlayerPosition fut_pos_;
+		SerializitedPlayerDirection dir_;
+		SerializitedPlayerSpeed speed_;
+
+		// производит вектор лута для класса сериализации
+		std::vector<SerializedLoot> MakeLootVector(const Player& player);
+
+	};
+
 } // namespace game_handler

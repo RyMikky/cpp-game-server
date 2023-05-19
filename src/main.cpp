@@ -9,7 +9,7 @@
 
 #include "logger_handler.h"                          // базовый инклюд обеспечивающий доступ к логгеру в данном участке кода
 #include "request_handler.h"                         // базовый инклюд открывающий доступ к серверу, обработчику ресурсов
-#include "test_frame.h"                              // тестовый фрейм, содержащий большое количество тестов системы
+//#include "test_frame.h"                              // тестовый фрейм, содержащий большое количество тестов системы
 #include "options.h"                                 // функционал запуска приложения
 
 using namespace std::literals;
@@ -20,7 +20,7 @@ namespace {
 
 // Запускает функцию fn на n потоках, включая текущий
 template <typename Fn>
-void RunWorkers(unsigned n, test::TestConfiguration&& test_config, const Fn& fn) {
+void RunWorkers(unsigned n, /*test::TestConfiguration&& test_config,*/ const Fn& fn) {
     n = std::max(1u, n);
     std::vector<std::jthread> workers;
     workers.reserve(n - 1);
@@ -29,12 +29,12 @@ void RunWorkers(unsigned n, test::TestConfiguration&& test_config, const Fn& fn)
         workers.emplace_back(fn);
     }
 
-    {
-        if (test_config.enable_) {
-            // таким образом как только выйдем из области видимости класс уничтожится
-            test::SimpleTest(std::move(test_config));
-        }
-    }
+    //{
+    //    if (test_config.enable_) {
+    //        // таким образом как только выйдем из области видимости класс уничтожится
+    //        test::SimpleTest(std::move(test_config));
+    //    }
+    //}
     
     fn();
 }
@@ -59,15 +59,15 @@ int main(int argc, const char* argv[]) {
             return EXIT_SUCCESS;
         }
 
-        // 3. Если есть упоминания о тестах, подготавливаем конфигурацию запуска тестов
-        test::TestConfiguration test_config;
-        if (command_line.test_frame_launch) {
-            test_config.address_ = "127.0.0.1";
-            test_config.port_ = "8080";
-            test_config.root_ = command_line.test_content_path;
-            test_config.authorization_ = http_handler::__DEBUG_REQUEST_AUTORIZATION_PASSWORD__;
-            test_config.enable_ = true;
-        }
+        //// 3. Если есть упоминания о тестах, подготавливаем конфигурацию запуска тестов
+        //test::TestConfiguration test_config;
+        //if (command_line.test_frame_launch) {
+        //    test_config.address_ = "127.0.0.1";
+        //    test_config.port_ = "8080";
+        //    test_config.root_ = command_line.test_content_path;
+        //    test_config.authorization_ = http_handler::__DEBUG_REQUEST_AUTORIZATION_PASSWORD__;
+        //    test_config.enable_ = true;
+        //}
 
         // 4. Инициализируем io_context
         const unsigned num_threads = std::thread::hardware_concurrency();
@@ -95,9 +95,14 @@ int main(int argc, const char* argv[]) {
             });
 
         // 8. Запускаем обработку асинхронных операций
-        RunWorkers(std::max(1u, num_threads), std::move(test_config), [&ioc] {
+        RunWorkers(std::max(1u, num_threads),/* std::move(test_config),*/ [&ioc] {
             ioc.run();
             });
+
+        // 9. Выполняем базовую сериализацию после завершения работы сервера, если поднят флаг сохранения
+        if (command_line.game_autosave) {
+            request_handler->SerializeGameData();
+        }
 
     }
     catch (const std::exception& ex)

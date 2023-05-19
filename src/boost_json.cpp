@@ -138,7 +138,7 @@ namespace json_detail {
 			player_data.emplace("bag", detail::GetPlayerBag(player));
 			
 			// загружаем данные о очках игрока
-			//player_data.emplace("score", player.GetScore());
+			player_data.emplace("score", player.GetScore());
 
 			players_list.emplace(
 				std::to_string(player.GetId()), player_data);

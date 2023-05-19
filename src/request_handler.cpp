@@ -32,7 +32,7 @@ namespace http_handler {
         if (timer_) {
             try
             {
-                timer_->SetPeriod(period);
+                timer_->SetAlignPeriod(period);
                 timer_->Start();
                 timer_enable_ = true;
             }
@@ -45,6 +45,7 @@ namespace http_handler {
         return *this;
     }
 
+    // выключает выполнение автотаймера, выкидывает исключение, если таймер уже выключен
     RequestHandler& RequestHandler::StopGameTimer() {
         if (!timer_enable_) {
             throw std::runtime_error("RequestHandler::game_timer_stop::Error::game_timer already stopped");
@@ -52,6 +53,55 @@ namespace http_handler {
 
         timer_->Stop(); 
         timer_enable_ = false;
+        return *this;
+    }
+
+    // выполняет запись данных игрового сервера
+    RequestHandler& RequestHandler::SerializeGameData() {
+        serializer_->SerializeGameData();
+        return *this;
+    }
+
+    // выполняет восстановленние данных игрового сервера
+    RequestHandler& RequestHandler::DeserializeGameData() {
+        serializer_->DeserializeGameData();
+        return *this;
+    }
+
+    // метод настройки игрового таймера, генерирует команды для обработки
+    RequestHandler& RequestHandler::TimerConfigurationPipeline() {
+
+        // если задано время автообновления состояния
+        if (arguments_.game_timer_launch && !arguments_.game_timer_period.empty()) {
+
+            // запускаем таймер обновления игровых состояний с периодом выравнивания - обновления состояния
+            timer_ = std::make_shared<time::TimeHandler>(api_strand_,
+                std::chrono::milliseconds(std::stoi(arguments_.game_timer_period)));
+
+            // конфигурируем метод обновления состояния игровых сессий
+            auto state_update = std::make_shared<time::OnTimeCommand
+                <std::chrono::milliseconds>>(
+                    [this](std::chrono::milliseconds delta) {
+                        this->game_->UpdateGameSessions(static_cast<int>(delta.count()));
+                    },
+                    std::chrono::milliseconds(std::stoi(arguments_.game_timer_period)));
+            // загружаем метод обновления состояния игровых сессий
+            timer_->AddCommand(arguments_.game_timer_period, std::move(state_update));
+
+            // если задан путь к сохранениям и задано время автосохранения
+            if (arguments_.game_autosave && !arguments_.save_state_period.empty()) {
+                // конфигурируем метод сериализации игровых состояний
+                auto serialization = std::make_shared<time::OnTimeCommand<void*>>(
+                    [this](void*) { this->SerializeGameData(); }, (void*) nullptr
+                );
+                // загружаем метод сериализации игровых состояний
+                timer_->AddCommand(arguments_.save_state_period, std::move(serialization));
+            }
+
+            timer_->Start();                              // стартуем обработчик
+            timer_enable_ = true;                         // поднинмаем флаг
+        }
+
         return *this;
     }
 
@@ -63,31 +113,24 @@ namespace http_handler {
             // загружаем настройки игровой модели
             game_ = std::make_shared<game::GameHandler>(arguments_.config_json_path);
 
+            // задаём игровой обработчик в сериализатор
+            serializer_ = std::make_shared<game::SerialHandler>(game_);
+
+            // если при старте указан флаг сериализации, то должно восстановить данные по указанному пути
+            if (arguments_.game_autosave) {
+                // назначаем путь к сохранению и сохраненным данным и выполняем восстановление
+                serializer_->SetBackupFilePath(arguments_.state_file_path).DeserializeGameData();
+            }
+
             // устанавливаем флаг рандомной позиции игроков на старте
             game_->SetRandomStartPosition(arguments_.randomize_spawn_points);
 
             // загружаем статические данные в менеджер файлов
             resource_ = std::make_shared<res::ResourceHandler>(arguments_.static_content_path);
-            // устанавливаем флаг запуска тест-системы
-            test_enable_ = arguments_.test_frame_launch;
+            //// устанавливаем флаг запуска тест-системы
+            //test_enable_ = arguments_.test_frame_launch;
 
-            if (!arguments_.game_timer_period.empty()) {
-                // запускаем таймер обновления игровых состояний
-                timer_ = std::make_shared<game::GameTimer>(api_strand_,
-                    std::chrono::milliseconds(std::stoi(arguments_.game_timer_period)),
-                    [this](std::chrono::milliseconds delta) {
-                        this->game_->UpdateGameSessions(static_cast<int>(delta.count()));
-                    });
-
-                if (!test_enable_) {
-                    // если не панируется запуск системы тестирования, то сразу же стартуем таймер
-                    timer_->Start();
-                    timer_enable_ = true;
-                    // иначе таймер запустится после завершения тестирования
-                }
-            }
-
-            return *this;
+            return TimerConfigurationPipeline();
         }
         catch (const std::exception& e)
         {
@@ -342,8 +385,8 @@ namespace http_handler {
     Response RequestHandler::DebugUnitTestsEndResponse(StringRequest&& req) {
         try
         {
-            test_enable_ = false;                        // первым делом снимаем флаг о работе тест системы
-            arguments_.test_frame_launch = false;        // также снимаем флаг и в переданном конфиге на всякий случай
+            //test_enable_ = false;                        // первым делом снимаем флаг о работе тест системы
+            //arguments_.test_frame_launch = false;        // также снимаем флаг и в переданном конфиге на всякий случай
             // таймер может быть только в том случае если изначально был сконфигурирован, включаем его
             if (timer_ && !timer_enable_) {
 
@@ -435,8 +478,14 @@ namespace http_handler {
                 // если активирован таймер, то кидаем отбойник на подобный запрос
                 return DebugCommonFailResponse(std::move(req), http::status::bad_request, "badRequest"sv, "Invalid endpoint"sv, ""sv);
             }
-            // обрабатываем запрос по изменению состояния игровой сессии сов ременем
-            return game_->SessionsUpdateResponse(std::move(req));
+            // обрабатываем запрос по изменению состояния игровой сессии со временем
+            return HandleSpecialCoopMethods(std::move(this->SerializeGameData()),
+                std::move(game_->SessionsUpdateResponse(std::move(req))));
+
+            /*return HandleSpecialCoopMethods(
+                std::move(game_->SessionsUpdateResponse(std::move(req))),
+                std::move(this->SerializeGameData()));*/
+            //return game_->SessionsUpdateResponse(std::move(req));
         }
 
         if (api_request_line == "/v1/game/state"sv) {

@@ -21,7 +21,9 @@
   <ItemGroup>
     <ClCompile Include="boost_json.cpp" />
     <ClCompile Include="collision_handler.cpp" />
+    <ClCompile Include="domain.cpp" />
     <ClCompile Include="game_handler.cpp" />
+    <ClCompile Include="time_handler.cpp" />
     <ClCompile Include="http_server.cpp" />
     <ClCompile Include="json_loader.cpp" />
     <ClCompile Include="logger_handler.cpp" />
@@ -32,7 +34,10 @@
     <ClCompile Include="player.cpp" />
     <ClCompile Include="request_handler.cpp" />
     <ClCompile Include="resource_handler.cpp" />
-    <ClCompile Include="test_frame.cpp" />
+    <ClCompile Include="serialization_handler.cpp" />
+    <ClCompile Include="test_frame.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="token.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -40,6 +45,7 @@
     <ClInclude Include="collision_handler.h" />
     <ClInclude Include="domain.h" />
     <ClInclude Include="extra_data.h" />
+    <ClInclude Include="time_handler.h" />
     <ClInclude Include="loot_generator.h" />
     <ClInclude Include="options.h" />
     <ClInclude Include="game_handler.h" />
@@ -51,8 +57,11 @@
     <ClInclude Include="request_handler.h" />
     <ClInclude Include="resource_handler.h" />
     <ClInclude Include="sdk.h" />
+    <ClInclude Include="serialization_handler.h" />
     <ClInclude Include="tagged.h" />
-    <ClInclude Include="test_frame.h" />
+    <ClInclude Include="test_frame.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="token.h" />
   </ItemGroup>
   <ItemGroup>
@@ -199,6 +208,7 @@
     <Import Project="..\packages\boost_log_setup-vc143.1.78.0\build\boost_log_setup-vc143.targets" Condition="Exists('..\packages\boost_log_setup-vc143.1.78.0\build\boost_log_setup-vc143.targets')" />
     <Import Project="..\packages\boost_thread-vc143.1.78.0\build\boost_thread-vc143.targets" Condition="Exists('..\packages\boost_thread-vc143.1.78.0\build\boost_thread-vc143.targets')" />
     <Import Project="..\packages\boost_program_options-vc143.1.78.0\build\boost_program_options-vc143.targets" Condition="Exists('..\packages\boost_program_options-vc143.1.78.0\build\boost_program_options-vc143.targets')" />
+    <Import Project="..\packages\boost_serialization-vc143.1.78.0\build\boost_serialization-vc143.targets" Condition="Exists('..\packages\boost_serialization-vc143.1.78.0\build\boost_serialization-vc143.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -215,5 +225,6 @@
     <Error Condition="!Exists('..\packages\boost_log_setup-vc143.1.78.0\build\boost_log_setup-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_log_setup-vc143.1.78.0\build\boost_log_setup-vc143.targets'))" />
     <Error Condition="!Exists('..\packages\boost_thread-vc143.1.78.0\build\boost_thread-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_thread-vc143.1.78.0\build\boost_thread-vc143.targets'))" />
     <Error Condition="!Exists('..\packages\boost_program_options-vc143.1.78.0\build\boost_program_options-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_program_options-vc143.1.78.0\build\boost_program_options-vc143.targets'))" />
+    <Error Condition="!Exists('..\packages\boost_serialization-vc143.1.78.0\build\boost_serialization-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_serialization-vc143.1.78.0\build\boost_serialization-vc143.targets'))" />
   </Target>
 </Project>

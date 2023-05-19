@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 
 #include "domain.h"
 
@@ -17,7 +17,7 @@ namespace resource_handler {
 
 		ResourceHandler& operator=(const ResourceHandler&) = delete;
 		ResourceHandler& operator=(ResourceHandler&&) = default;
-		// добавляет запись о документе в базовый вектор
+		// РґРѕР±Р°РІР»СЏРµС‚ Р·Р°РїРёСЃСЊ Рѕ РґРѕРєСѓРјРµРЅС‚Рµ РІ Р±Р°Р·РѕРІС‹Р№ РІРµРєС‚РѕСЂ
 		void AddItem(ResourceItem&& item);
 
 		std::string_view GetRootName() const {
@@ -26,14 +26,14 @@ namespace resource_handler {
 		std::string_view GetRootPath() const {
 			return _resource_base[0]._path;
 		}
-		// возвращает указатель на данные по имени файла
+		// РІРѕР·РІСЂР°С‰Р°РµС‚ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РґР°РЅРЅС‹Рµ РїРѕ РёРјРµРЅРё С„Р°Р№Р»Р°
 		ResourcePtr GetItem(std::string_view file_name) const;
-		// возвращает указатель на данные по пути к файлу
+		// РІРѕР·РІСЂР°С‰Р°РµС‚ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РґР°РЅРЅС‹Рµ РїРѕ РїСѓС‚Рё Рє С„Р°Р№Р»Сѓ
 		ResourcePtr GetItem(const fs::path& file_path) const;
 
-		// подтверждает наличие файла по имени
+		// РїРѕРґС‚РІРµСЂР¶РґР°РµС‚ РЅР°Р»РёС‡РёРµ С„Р°Р№Р»Р° РїРѕ РёРјРµРЅРё
 		bool Count(std::string_view file_name) const;
-		// подтверждает наличие файла по пути
+		// РїРѕРґС‚РІРµСЂР¶РґР°РµС‚ РЅР°Р»РёС‡РёРµ С„Р°Р№Р»Р° РїРѕ РїСѓС‚Рё
 		bool Count(fs::path file_path) const;
 
 	private:
@@ -43,14 +43,14 @@ namespace resource_handler {
 		FileIndexPathToName _path_to_data_ptr;
 
 		void SetRoot(const fs::path& file_path);
-		// парсит расширение файла и возвращает тип
+		// РїР°СЂСЃРёС‚ СЂР°СЃС€РёСЂРµРЅРёРµ С„Р°Р№Р»Р° Рё РІРѕР·РІСЂР°С‰Р°РµС‚ С‚РёРї
 		ResourceType ParseFileExtension(std::string_view label);
-		// рекурентный проход по всем вложенным каталогам
+		// СЂРµРєСѓСЂРµРЅС‚РЅС‹Р№ РїСЂРѕС…РѕРґ РїРѕ РІСЃРµРј РІР»РѕР¶РµРЅРЅС‹Рј РєР°С‚Р°Р»РѕРіР°Рј
 		void ProcessRootTree(const fs::path& file_path);
 	};
 
 	namespace detail {
-		// базовый препроцессор-индексатор файлов
+		// Р±Р°Р·РѕРІС‹Р№ РїСЂРµРїСЂРѕС†РµСЃСЃРѕСЂ-РёРЅРґРµРєСЃР°С‚РѕСЂ С„Р°Р№Р»РѕРІ
 		resource_handler::ResourceHandler LoadFiles(const char* file_path);
 
 	} // namespace detail

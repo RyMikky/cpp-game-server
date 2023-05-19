@@ -14,7 +14,10 @@
 
 namespace game_handler {
 
+	// базовое максимальное количество игроков в сессии
 	static const size_t __DEFAULT_SESSIONS_MAX_PLAYERS__ = 200;
+	// базовое максимальное количество игровых сессий
+	static const size_t __DEFAULT_GAME_SESSIONS_MAX_COUNT__ = 50;
 
 	namespace fs = std::filesystem;
 	namespace json = boost::json;
@@ -23,44 +26,12 @@ namespace game_handler {
 	namespace net = boost::asio;
 	namespace sys = boost::system;
 
-	class GameHandler; // forward-definition
-
-	class GameTimer : public std::enable_shared_from_this<GameTimer> {
-		using Timer = net::steady_timer;
-		using Function = std::function<void(std::chrono::milliseconds delta)>;
-	public:
-		GameTimer(http_handler::Strand& strand, std::chrono::milliseconds period, Function&& function)
-			: api_strand_(strand), period_(period), function_(std::move(function)) {
-		}
-
-		GameTimer(const GameTimer&) = delete;
-		GameTimer& operator=(const GameTimer&) = delete;
-		GameTimer(GameTimer&&) = default;
-		GameTimer& operator=(GameTimer&&) = default;
-
-		// запускает выполнение таймера
-		GameTimer& Start();
-		// останавливает выполнение таймера
-		GameTimer& Stop();
-		// назначает новый временной интервал таймера
-		GameTimer& SetPeriod(std::chrono::milliseconds period);
-		// назначение новой функции для выполнения по таймеру
-		GameTimer& SetFunction(Function&& function);
-
-	private:
-		http_handler::Strand& api_strand_;
-		std::chrono::milliseconds period_;
-		Function function_;
-		Timer timer_{ api_strand_, period_ };
-
-		bool execution_ = false;
-		// основная имплементация выполнения таймера
-		void ExecutionImpl(sys::error_code ec);
-	};
+	class GameHandler;                           // forward-definition
 
 	// класс-обработчик текущей игровой сессии
 	class GameSession : public std::enable_shared_from_this<GameSession>, public CollisionProvider {
 		friend class GameHandler;
+		friend class GameSessionRestoreContext;
 	public:
 
 		/*
@@ -72,21 +43,23 @@ namespace game_handler {
 		* сгенерировать новый лут и разместить его на карте, и обязательно с уникальным идентификатором в сессии
 		*/
 
-		GameSession(GameHandler& handler, loot_gen::LootGeneratorConfig config, const model::Map* map, size_t max_players) 
-			: game_handler_(handler)
+		GameSession(size_t id, GameHandler& handler, loot_gen::LootGeneratorConfig config, const model::Map* map, size_t max_players) 
+			: session_id_(id)
+			, game_handler_(handler)
 			, loot_gen_{ config/*, []() { return model::GetRandomDouble(); }*/ }
-			, session_game_map_(map)
+			, session_map_(map)
 			, players_id_(max_players)
 			, loots_id_(max_players * static_cast<size_t>(
-				std::pow(session_game_map_->GetOnMapBagCapacity(), 2))) {
+				std::pow(session_map_->GetOnMapBagCapacity(), 2))) {
 		}
-		GameSession(GameHandler& handler, loot_gen::LootGeneratorConfig config, const model::Map* map, size_t max_players, bool start_random_position)
-			: game_handler_(handler)
+		GameSession(size_t id, GameHandler& handler, loot_gen::LootGeneratorConfig config, const model::Map* map, size_t max_players, bool start_random_position)
+			: session_id_(id)
+			, game_handler_(handler)
 			, loot_gen_{ config/*, []() { return model::GetRandomDouble(); }*/ }
-			, session_game_map_(map)
+			, session_map_(map)
 			, players_id_(max_players)
 			, loots_id_(max_players * static_cast<size_t>(
-				std::pow(session_game_map_->GetOnMapBagCapacity(), 2)))
+				std::pow(session_map_->GetOnMapBagCapacity(), 2)))
 			, random_start_position_(start_random_position) {
 		}
 		
@@ -106,6 +79,30 @@ namespace game_handler {
 		* И честный генератор, выдающий 0.0 -> 1.0, добавит больше гибкости и непредсказуемости в процессе генерации лута
 		* Что в свою очередь добавит интереса самой игре.
 		*/
+
+		// возвращает идентификатор игровой сессии
+		size_t GetId() const {
+			return session_id_;
+		}
+		// возвращает указатель на карту игровой сессии
+		const model::Map* GetMap() const {
+			return session_map_;
+		}
+
+		// ----------------- блок наследуемых методов CollisionProvider ----------------------------
+
+		// возвращает количество офисов бюро находок на карте игровой сессии
+		size_t OfficesCount() const override;
+		// возвращает офис бюро находок по индексу
+		const model::Office& GetOffice(size_t) const override;
+		// возвращает мапу с игроками в игровой сессии
+		const SessionPlayers& GetPlayers() const override {
+			return session_players_;
+		}
+		// возвращает мапу с лутом в игровой сессии
+		const SessionLoots& GetLoots() const override {
+			return session_loots_;
+		}
 
 	protected:
 
@@ -132,21 +129,6 @@ namespace game_handler {
 		// отвечает есть ли в сессии свободное местечко
 		bool CheckFreeSpace();
 
-		// ----------------- блок наследуемых методов CollisionProvider ----------------------------
-
-		// возвращает количество офисов бюро находок на карте игровой сессии
-		size_t OfficesCount() const override;
-		// возвращает офис бюро находок по индексу
-		const model::Office& GetOffice(size_t) const override;
-		// возвращает мапу с игроками в игровой сессии
-		const SessionPlayers& GetPlayers() const override{
-			return session_players_;
-		}
-		// возвращает мапу с лутом в игровой сессии
-		const SessionLoots& GetLoots() const override {
-			return session_loots_;
-		}
-
 		const auto cbegin() const {
 			return session_players_.cbegin();
 		}
@@ -161,9 +143,10 @@ namespace game_handler {
 		}
 
 	private:
+		size_t session_id_;                                 // идентификатор игровой сессии
 		GameHandler& game_handler_;                         // ссылка на базовый игровой обработчик
 		loot_gen::LootGenerator loot_gen_;                  // собственный генератор лута игровой сессии
-		const model::Map* session_game_map_;                // указатель на карту игровой модели
+		const model::Map* session_map_;                // указатель на карту игровой модели
 
 		SessionPlayers session_players_;                    // хешированная мапа с игроками
 		std::vector<bool> players_id_;                      // булевый массив индексов игроков
@@ -173,11 +156,16 @@ namespace game_handler {
 
 		bool random_start_position_ = true;                 // флаг случайной позиции игрока на старте
 
+		// добавляет нового игрока на карту
+		Player& AddPlayerImpl(size_t, std::string_view, const Token*, unsigned);
+
 		// проверяет стартовую позицию игрока на предмет совпадения с другими игроками в сессии
 		bool CheckStartPositionImpl(PlayerPosition& position);
 
+		// генерирует лут с заданым типом, идентификатором и позицией
+		bool GenerateSessionLootImpl(size_t type, size_t id, PlayerPosition pos);
 		// генерирует на карте новые предметы лута в указанном количестве
-		bool GenerateSessionLootImpl(unsigned count);
+		bool GenerateSessionLoots(unsigned count);
 		// выполняет проверку количестав лута на карте и генерацию нового
 		bool UpdateSessionLootsCount(int time);
 
@@ -214,7 +202,42 @@ namespace game_handler {
 	using GameMapInstance = std::unordered_map<const model::Map*, GameInstance, MapPtrHasher>;
 	// структура для быстрого поиска игрока по токену, реализуется реверсивным добавлением из сессии в обработчик
 	using GameTokenList = std::unordered_map<Token, std::shared_ptr<GameSession>, TokenHasher>;
+	// структура для быстрого поиска сессии по идентификатору
+	using GameSessionList = std::unordered_map<size_t, std::shared_ptr<GameSession>>;
 
+	// класс-контекст восстановления данных
+	class GameSessionRestoreContext {
+	private:
+		friend class GameHandler;
+		GameHandler& game_;
+	public:
+		GameSessionRestoreContext() = delete;
+		GameSessionRestoreContext(const GameSessionRestoreContext&) = delete;
+		GameSessionRestoreContext& operator=(const GameSessionRestoreContext&) = delete;
+		GameSessionRestoreContext(GameSessionRestoreContext&&) = default;
+		GameSessionRestoreContext& operator=(GameSessionRestoreContext&&) = default;
+
+		GameSessionRestoreContext(GameHandler& game)
+			: game_(game) {
+		}
+		GameSessionRestoreContext(GameHandler& game, std::shared_ptr<GameSession> session)
+			: game_(game), session_(session) {
+		}
+
+		// воссоздаёт игрового персонажа
+		GameHandler& RestoreGamePlayer(const SerializedPlayer& player);
+		// воссоздаёт игровой лут
+		GameHandler& RestoreGameLoot(const SerializedLoot& loot);
+
+	protected:
+		// назначает игровую сессию
+		GameSessionRestoreContext& SetRestoredGameSession(std::shared_ptr<GameSession> session);
+
+	private:
+		std::shared_ptr<GameSession> session_;
+	};
+
+	// основной класс обработчик игровых сессий
 	class GameHandler {
 		friend class GameSession;
 		// даёт доступ игровой сессии, для создания и удаления токенов
@@ -222,11 +245,21 @@ namespace game_handler {
 		// потенциально, в этом особой нужды нет, но тогда, поиск конкретного игрока по токену будет идти циклически 
 		// в каждой из открытых сессий путём банального перебора, а так, GameHandler будет "из коробки" знать
 		// кто есть в игре и в каком из игровых инстансов со временем поиска в диапазоне от O(N) до O(LogN) - unordered_map
+		friend class GameSessionRestoreContext;
 	public:
 		// отдаём создание игровой модели классу обработчику игры
-		explicit GameHandler(const fs::path& configuration)
-			: game_{ json_loader::LoadGameConfiguration(configuration) } {
+		explicit GameHandler(const fs::path& configuration, size_t session_count = __DEFAULT_GAME_SESSIONS_MAX_COUNT__)
+			: game_{ json_loader::LoadGameConfiguration(configuration) }
+			, sessions_id_(session_count)
+			, restore_context_(*this) {
 		}
+
+		// ------------------- блок методов сериализатора ----------------------
+
+		// воссоздаёт игровую сессию с указанным идентификатором и названием карты
+		[[nodiscard]] GameSessionRestoreContext& RestoreGameSession(size_t, std::string_view);
+
+		// ------------------- прочие управляющие методы -----------------------
 
 		// Выполняет обновление всех открытых игровых сессий по времени
 		void UpdateGameSessions(int time);
@@ -234,6 +267,11 @@ namespace game_handler {
 		void SetRandomStartPosition(bool flag);
 		// Сбрасывает и удаляет все активные игровые сессии
 		void ResetGameSessions();
+
+		// возвращает массив с игровыми сессиями
+		const GameSessionList& GetSessions() const {
+			return sessions_list_;
+		}
 		
 		// Возвращает ответ на запрос по изменению состояния игровых сессий со временем
 		http_handler::Response SessionsUpdateResponse(http_handler::StringRequest&& req);
@@ -251,6 +289,9 @@ namespace game_handler {
 		http_handler::Response MapsListResponse(http_handler::StringRequest&& req);
 
 	protected: // протектед блок доступен только friend class -у для обратной записи данных и получения уникальных токенов
+
+		// возвращает уже существующий токен по строковому представлению
+		const Token* GetCreatedToken(const std::string&);
 		/* 
 		 * Реверсивный метод, который вызывается из игровой сессии.
 		 * Служит для получения уникального токена при добавлении нового игрока.
@@ -262,14 +303,29 @@ namespace game_handler {
 	private:
 		model::Game game_;
 		std::mutex mutex_;
+		GameSessionRestoreContext restore_context_;      // контекст восстановления игровых сессий
 
-		GameMapInstance instances_;
-		GameTokenList tokens_list_;
+		GameMapInstance instances_;                      // игровые инстансы по картам
+		GameTokenList tokens_list_;                      // токены с указателями на конкретные сессии
+		GameSessionList sessions_list_;                  // идентификаторы сессий и указатели на сессии
 
+		std::vector<bool> sessions_id_;                  // булевый массив для id игровых сессий
 		bool random_start_position_ = false;             // флаг радндомной позиции игроков на старте
 
+		// возвращает уникальный токен после генерации
 		const Token* GetUniqueTokenImpl(std::shared_ptr<GameSession> session);
+		// добавляет конкретный токен с указателем на игровую сессию
+		const Token* AddUniqueTokenImpl(const std::string&, std::shared_ptr<GameSession>);
+		// добавляет конкретный токен с указателем на игровую сессию
+		const Token* AddUniqueTokenImpl(Token&&, std::shared_ptr<GameSession>);
+
 		bool ResetTokenImpl(std::string_view token);
+
+		// возвращает свободный уникальный идентификатор игровой сессии,
+		// применяется при созданнии новых игровых сессий
+		std::optional<size_t> GetNewUniqueSessionId();
+		// создаёт новую игровую сессию
+		std::shared_ptr<GameSession> MakeNewGameSessoin(size_t id, const model::Map* map);
 
 		// Возвращает ответ на запрос по изменению состояния игровых сессий со временем
 		http_handler::Response SessionsUpdateResponseImpl(http_handler::StringRequest&& req);

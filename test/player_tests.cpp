@@ -92,8 +92,8 @@ SCENARIO("GamePlayer test module", "[GamePlayer]") {
 			AND_GIVEN("a massiv with four GameLoots") {
 
 				std::vector<GameLoot> four_game_loots = {
-					GameLoot{__LOOT_TYPES__[0], 0, {0.0, 0.0}}, GameLoot{__LOOT_TYPES__[1], 1, {3.0, 3.0}},
-					GameLoot{__LOOT_TYPES__[2], 2, {6.0, 6.0}}, GameLoot{__LOOT_TYPES__[3], 3, {7.0, 9.0}}
+					GameLoot{__LOOT_TYPES__[0], 0, 0, {0.0, 0.0}}, GameLoot{__LOOT_TYPES__[1], 1, 1, {3.0, 3.0}},
+					GameLoot{__LOOT_TYPES__[2], 2, 2, {6.0, 6.0}}, GameLoot{__LOOT_TYPES__[3], 1, 3, {7.0, 9.0}}
 				};
 
 				THEN("try add one loot item in to the player bag") {

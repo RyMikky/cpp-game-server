@@ -158,7 +158,7 @@ SCENARIO("TestCollisionProvider", "[TestCollisionProvider]") {
 
         GIVEN("a new Player, Loot and Office") {
 
-            GameLoot item{ __LOOT_TYPES__[0], 0 , {10.0, 0.0} };
+            GameLoot item{ __LOOT_TYPES__[0], 0, 0 , {10.0, 0.0} };
             Player player{0, "Vasiliy", nullptr, 3 };
             model::Office office{ model::Office::Id{"Buro"}, {20, 0}, {5, 0}};
 
@@ -190,7 +190,7 @@ SCENARIO("TestCollisionProvider", "[TestCollisionProvider]") {
 
             session
                 .AddLoot(0,
-                    std::move(GameLoot{ __LOOT_TYPES__[0], 0 , {10.0, 0.2} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[0], 0, 0 , {10.0, 0.2} }))
                 .AddPlayer(&__TEST_TOKENS__[0],
                     std::move(Player{ 0, "Vasiliy", nullptr, 3 }.SetFuturePosition(30, 0)));
 
@@ -212,7 +212,7 @@ SCENARIO("TestCollisionProvider", "[TestCollisionProvider]") {
 
             session
                 .AddLoot(0,
-                    std::move(GameLoot{ __LOOT_TYPES__[0], 0 , {10.0, 0.3} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[0], 0, 0 , {10.0, 0.3} }))
                 .AddPlayer(&__TEST_TOKENS__[0],
                     std::move(Player{ 0, "Vasiliy", nullptr, 3 }.SetFuturePosition(30, 0)));
 
@@ -227,7 +227,7 @@ SCENARIO("TestCollisionProvider", "[TestCollisionProvider]") {
 
             session
                 .AddLoot(0,
-                    std::move(GameLoot{ __LOOT_TYPES__[0], 0 , {10.0, 0.4} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[0], 0, 0 , {10.0, 0.4} }))
                 .AddPlayer(&__TEST_TOKENS__[0],
                     std::move(Player{ 0, "Vasiliy", nullptr, 3 }.SetFuturePosition(30, 0)));
 
@@ -242,13 +242,13 @@ SCENARIO("TestCollisionProvider", "[TestCollisionProvider]") {
 
             session
                 .AddLoot(0,
-                    std::move(GameLoot{ __LOOT_TYPES__[0], 0 , {0.0, 3.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[0], 0, 0 , {0.0, 3.0} }))
                 .AddLoot(1,
-                    std::move(GameLoot{ __LOOT_TYPES__[1], 1 , {0.0, 9.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[1], 1, 1 , {0.0, 9.0} }))
                 .AddLoot(2,
-                    std::move(GameLoot{ __LOOT_TYPES__[2], 2 , {5.0, 0.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[2], 2, 2 , {5.0, 0.0} }))
                 .AddLoot(3,
-                    std::move(GameLoot{ __LOOT_TYPES__[3], 3 , {12.0, 0.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[3], 3, 3 , {12.0, 0.0} }))
                 .AddPlayer(&__TEST_TOKENS__[0],
                     std::move(Player{ 0, "Vasiliy", nullptr, 3 }.SetFuturePosition(0, 12)))
                 .AddPlayer(&__TEST_TOKENS__[1],
@@ -301,39 +301,39 @@ SCENARIO("TestCollisionProvider", "[TestCollisionProvider]") {
 
             session
                 .AddLoot(0,
-                    std::move(GameLoot{ __LOOT_TYPES__[0], 0 , {0.0, 3.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[0], 0, 0 , {0.0, 3.0} }))
                 .AddLoot(1,
-                    std::move(GameLoot{ __LOOT_TYPES__[3], 1 , {0.0, 7.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[3], 3, 1 , {0.0, 7.0} }))
                 .AddLoot(2,
-                    std::move(GameLoot{ __LOOT_TYPES__[2], 2 , {0.0, 9.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[2], 2, 2 , {0.0, 12.0} }))
                 .AddLoot(3,
-                    std::move(GameLoot{ __LOOT_TYPES__[3], 3 , {0.0, 12.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[3], 3, 3 , {0.0, 18.0} }))
                 .AddLoot(4,
-                    std::move(GameLoot{ __LOOT_TYPES__[2], 4 , {5.0, 0.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[2], 2, 4 , {5.0, 0.0} }))
                 .AddLoot(5,
-                    std::move(GameLoot{ __LOOT_TYPES__[1], 5 , {7.0, 0.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[1], 1, 5 , {9.0, 0.0} }))
                 .AddLoot(6,
-                    std::move(GameLoot{ __LOOT_TYPES__[0], 6 , {12.0, 0.0} }))
+                    std::move(GameLoot{ __LOOT_TYPES__[0], 0, 6 , {21.0, 0.0} }))
                 .AddOffice(std::move(
-                    model::Office{ model::Office::Id{"Buro"}, {9, 0}, {5, 0} }))
+                    model::Office{ model::Office::Id{"Buro"}, {15, 0}, {5, 0} }))
                 .AddOffice(std::move(
-                    model::Office{ model::Office::Id{"Buro"}, {0, 15}, {5, 0} }))
+                    model::Office{ model::Office::Id{"Buro"}, {0, 30}, {5, 0} }))
                 .AddPlayer(&__TEST_TOKENS__[0],
-                    std::move(Player{ 0, "Vasiliy", nullptr, 3 }.SetFuturePosition(0, 15)))
+                    std::move(Player{ 0, "Vasiliy", nullptr, 3 }.SetFuturePosition(0, 30)))
                 .AddPlayer(&__TEST_TOKENS__[1],
-                    std::move(Player{ 0, "Mariya", nullptr, 3 }.SetFuturePosition(15, 0)));
+                    std::move(Player{ 0, "Mariya", nullptr, 3 }.SetFuturePosition(30, 0)));
 
             GIVEN("A match result reference") {
 
                 std::vector<CollisionEvent> reference = {
-                    { CollisionEventType::GATHERING, 0, &__TEST_TOKENS__[0], 0.00, 0.20 },
-                    { CollisionEventType::GATHERING, 4, &__TEST_TOKENS__[1], 0.00, 0.33 },
-                    { CollisionEventType::GATHERING, 1, &__TEST_TOKENS__[0], 0.00, 0.46 },
-                    { CollisionEventType::GATHERING, 5, &__TEST_TOKENS__[1], 0.00, 0.46 },
-                    { CollisionEventType::GATHERING, 2, &__TEST_TOKENS__[0], 0.00, 0.60 },
-                    { CollisionEventType::RETURN, 0, &__TEST_TOKENS__[1], 0.00, 0.60 },
-                    { CollisionEventType::GATHERING, 3, &__TEST_TOKENS__[0], 0.00, 0.80 },
-                    { CollisionEventType::GATHERING, 6, &__TEST_TOKENS__[1], 0.00, 0.80 },
+                    { CollisionEventType::GATHERING, 0, &__TEST_TOKENS__[0], 0.00, 0.10 },
+                    { CollisionEventType::GATHERING, 4, &__TEST_TOKENS__[1], 0.00, 0.166666 },
+                    { CollisionEventType::GATHERING, 1, &__TEST_TOKENS__[0], 0.00, 0.233333 },
+                    { CollisionEventType::GATHERING, 5, &__TEST_TOKENS__[1], 0.00, 0.299999 },
+                    { CollisionEventType::GATHERING, 2, &__TEST_TOKENS__[0], 0.00, 0.40 },
+                    { CollisionEventType::RETURN, 0, &__TEST_TOKENS__[1], 0.00, 0.50 },
+                    { CollisionEventType::GATHERING, 3, &__TEST_TOKENS__[0], 0.00, 0.599999 },
+                    { CollisionEventType::GATHERING, 6, &__TEST_TOKENS__[1], 0.00, 0.699999 },
                     { CollisionEventType::RETURN, 1, &__TEST_TOKENS__[0], 0.00, 1.00 }
                 };
 

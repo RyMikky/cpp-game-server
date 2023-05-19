@@ -1,4 +1,4 @@
-#include "resource_handler.h"
+п»ї#include "resource_handler.h"
 
 #include <iostream>
 
@@ -7,7 +7,7 @@ namespace resource_handler {
 	ResourceHandler::ResourceHandler(const char* main_root) {
 
 		std::string path_line(main_root);
-		// добавляем слеш, если его не поставили
+		// РґРѕР±Р°РІР»СЏРµРј СЃР»РµС€, РµСЃР»Рё РµРіРѕ РЅРµ РїРѕСЃС‚Р°РІРёР»Рё
 		if (path_line.back() != '/' && path_line.back() != '\\') {
 			path_line.push_back('/');
 		}
@@ -19,68 +19,68 @@ namespace resource_handler {
 		SetRoot(file_path);
 	}
 
-	// добавляет запись о документе в базовый вектор
+	// РґРѕР±Р°РІР»СЏРµС‚ Р·Р°РїРёСЃСЊ Рѕ РґРѕРєСѓРјРµРЅС‚Рµ РІ Р±Р°Р·РѕРІС‹Р№ РІРµРєС‚РѕСЂ
 	void ResourceHandler::AddItem(ResourceItem&& item) {
-		// записываем данные в вектор и берем ссылку
+		// Р·Р°РїРёСЃС‹РІР°РµРј РґР°РЅРЅС‹Рµ РІ РІРµРєС‚РѕСЂ Рё Р±РµСЂРµРј СЃСЃС‹Р»РєСѓ
 		auto& ref = _resource_base.emplace_back(std::move(item));
-		// также обновляем записи в словарях для быстрого поиска
+		// С‚Р°РєР¶Рµ РѕР±РЅРѕРІР»СЏРµРј Р·Р°РїРёСЃРё РІ СЃР»РѕРІР°СЂСЏС… РґР»СЏ Р±С‹СЃС‚СЂРѕРіРѕ РїРѕРёСЃРєР°
 		_name_to_data_ptr.insert( { ref._name, &ref });
 		_path_to_data_ptr.insert({ ref._path, &ref });
 	}
 
-	// возвращает указатель на данные по имени файла
+	// РІРѕР·РІСЂР°С‰Р°РµС‚ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РґР°РЅРЅС‹Рµ РїРѕ РёРјРµРЅРё С„Р°Р№Р»Р°
 	ResourcePtr ResourceHandler::GetItem(std::string_view file_name) const {
 		return !Count(file_name) ? nullptr : _name_to_data_ptr.at(file_name);
 	}
 
-	// возвращает указатель на данные по пути к файлу
+	// РІРѕР·РІСЂР°С‰Р°РµС‚ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РґР°РЅРЅС‹Рµ РїРѕ РїСѓС‚Рё Рє С„Р°Р№Р»Сѓ
 	ResourcePtr ResourceHandler::GetItem(const fs::path& file_path) const {
 		return !Count(file_path) ? nullptr : _path_to_data_ptr.at(file_path.generic_string());
 	}
 
-	// подтверждает наличие файла по имени
+	// РїРѕРґС‚РІРµСЂР¶РґР°РµС‚ РЅР°Р»РёС‡РёРµ С„Р°Р№Р»Р° РїРѕ РёРјРµРЅРё
 	bool ResourceHandler::Count(std::string_view file_name) const {
 		return _name_to_data_ptr.count(file_name);
 	}	
 
-	// подтверждает наличие файла по пути
+	// РїРѕРґС‚РІРµСЂР¶РґР°РµС‚ РЅР°Р»РёС‡РёРµ С„Р°Р№Р»Р° РїРѕ РїСѓС‚Рё
 	bool ResourceHandler::Count(fs::path file_path) const {
 		return _path_to_data_ptr.count(file_path.generic_string());
 	}
 
 	void ResourceHandler::SetRoot(const fs::path& file_path) {
-		//  в данную функцию должен придти путь к основному руту с файлами
+		//  РІ РґР°РЅРЅСѓСЋ С„СѓРЅРєС†РёСЋ РґРѕР»Р¶РµРЅ РїСЂРёРґС‚Рё РїСѓС‚СЊ Рє РѕСЃРЅРѕРІРЅРѕРјСѓ СЂСѓС‚Сѓ СЃ С„Р°Р№Р»Р°РјРё
 		if (!fs::is_directory(file_path)) {
 			throw std::runtime_error("Incoming Path is not a RootFolder");
 		}
 
-		// создаём первую запись о руте
+		// СЃРѕР·РґР°С‘Рј РїРµСЂРІСѓСЋ Р·Р°РїРёСЃСЊ Рѕ СЂСѓС‚Рµ
 		resource_handler::ResourceItem root;
 		root._path = file_path.generic_string();
 		root._name = file_path.filename().string();
 		root._type = ResourceType::root;
-		// добавляем первую запись о руте
+		// РґРѕР±Р°РІР»СЏРµРј РїРµСЂРІСѓСЋ Р·Р°РїРёСЃСЊ Рѕ СЂСѓС‚Рµ
 		AddItem(std::move(root));
-		// запускаем рекурсию обхода дерева вложенных папок
+		// Р·Р°РїСѓСЃРєР°РµРј СЂРµРєСѓСЂСЃРёСЋ РѕР±С…РѕРґР° РґРµСЂРµРІР° РІР»РѕР¶РµРЅРЅС‹С… РїР°РїРѕРє
 		ProcessRootTree(file_path);
 	}
 
-	// парсит расширение файла и возвращает тип
+	// РїР°СЂСЃРёС‚ СЂР°СЃС€РёСЂРµРЅРёРµ С„Р°Р№Р»Р° Рё РІРѕР·РІСЂР°С‰Р°РµС‚ С‚РёРї
 	ResourceType ResourceHandler::ParseFileExtension(std::string_view label) {
 		std::string extension = "";
 
-		// перебираем полученную строку задом на перед
+		// РїРµСЂРµР±РёСЂР°РµРј РїРѕР»СѓС‡РµРЅРЅСѓСЋ СЃС‚СЂРѕРєСѓ Р·Р°РґРѕРј РЅР° РїРµСЂРµРґ
 		for (auto it = label.rbegin(); it != label.rend(); it++) {
 			if (*it == '.') {
-				break;                   // как только дошли до точки, то прекращаем цикл
+				break;                   // РєР°Рє С‚РѕР»СЊРєРѕ РґРѕС€Р»Рё РґРѕ С‚РѕС‡РєРё, С‚Рѕ РїСЂРµРєСЂР°С‰Р°РµРј С†РёРєР»
 			}
 			extension += std::tolower(*it);
 		}
 
-		// реверсим строку обратно в нормальный вид
+		// СЂРµРІРµСЂСЃРёРј СЃС‚СЂРѕРєСѓ РѕР±СЂР°С‚РЅРѕ РІ РЅРѕСЂРјР°Р»СЊРЅС‹Р№ РІРёРґ
 		std::reverse(extension.begin(), extension.end());
 
-		// смотрим совпадение расширения файла в константной мапе
+		// СЃРјРѕС‚СЂРёРј СЃРѕРІРїР°РґРµРЅРёРµ СЂР°СЃС€РёСЂРµРЅРёСЏ С„Р°Р№Р»Р° РІ РєРѕРЅСЃС‚Р°РЅС‚РЅРѕР№ РјР°РїРµ
 		if (__FILES_EXTENSIONS__.count(extension)) {
 			return __FILES_EXTENSIONS__.at(extension);
 		}
@@ -89,7 +89,7 @@ namespace resource_handler {
 		}
 	}
 
-	// рекурентный проход по всем вложенным каталогам
+	// СЂРµРєСѓСЂРµРЅС‚РЅС‹Р№ РїСЂРѕС…РѕРґ РїРѕ РІСЃРµРј РІР»РѕР¶РµРЅРЅС‹Рј РєР°С‚Р°Р»РѕРіР°Рј
 	void ResourceHandler::ProcessRootTree(const fs::path& file_path) {
 
 		for (const fs::directory_entry& dir_entry
@@ -97,26 +97,26 @@ namespace resource_handler {
 
 			if (dir_entry.is_directory())
 			{
-				// создаём запись о папке
+				// СЃРѕР·РґР°С‘Рј Р·Р°РїРёСЃСЊ Рѕ РїР°РїРєРµ
 				resource_handler::ResourceItem folder;
-				// generic_string() необходим что бы на Windows не было \\ в качестве разделителя
+				// generic_string() РЅРµРѕР±С…РѕРґРёРј С‡С‚Рѕ Р±С‹ РЅР° Windows РЅРµ Р±С‹Р»Рѕ \\ РІ РєР°С‡РµСЃС‚РІРµ СЂР°Р·РґРµР»РёС‚РµР»СЏ
 				folder._path = dir_entry.path().generic_string();
 				folder._name = dir_entry.path().filename().string();
 				folder._type = ResourceType::folder;
-				// добавляем запись о папке
+				// РґРѕР±Р°РІР»СЏРµРј Р·Р°РїРёСЃСЊ Рѕ РїР°РїРєРµ
 				AddItem(std::move(folder));
-				// продолжаем рекурентный перебор
+				// РїСЂРѕРґРѕР»Р¶Р°РµРј СЂРµРєСѓСЂРµРЅС‚РЅС‹Р№ РїРµСЂРµР±РѕСЂ
 				ProcessRootTree(dir_entry);
 
 			}
 			else if (dir_entry.is_regular_file())
 			{
-				// создаём запись о файле
+				// СЃРѕР·РґР°С‘Рј Р·Р°РїРёСЃСЊ Рѕ С„Р°Р№Р»Рµ
 				resource_handler::ResourceItem file;
 				file._path = dir_entry.path().generic_string();
 				file._name = dir_entry.path().filename().string();
 				file._type = ParseFileExtension(file._name);
-				// добавляем запись о файле
+				// РґРѕР±Р°РІР»СЏРµРј Р·Р°РїРёСЃСЊ Рѕ С„Р°Р№Р»Рµ
 				AddItem(std::move(file));
 			}
 		}
@@ -127,7 +127,7 @@ namespace resource_handler {
 		resource_handler::ResourceHandler LoadFiles(const char* main_root) {
 
 			std::string path_line(main_root);
-			// добавляем слеш, если его не поставили
+			// РґРѕР±Р°РІР»СЏРµРј СЃР»РµС€, РµСЃР»Рё РµРіРѕ РЅРµ РїРѕСЃС‚Р°РІРёР»Рё
 			if (path_line.back() != '/' && path_line.back() != '\\') {
 				path_line.push_back('/');
 			}

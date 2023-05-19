@@ -17,7 +17,22 @@ namespace game_handler {
 
     // позиция игрока или вещи, отличается от модельной тем, что испольщуются double
     struct PlayerPosition {
-        double x_, y_;
+        PlayerPosition() = default;
+        PlayerPosition(double x, double y) 
+            : x_(x), y_(y) {
+        }
+        PlayerPosition(int x, int y)
+            : x_(static_cast<double>(x)), y_(static_cast<double>(y)) {
+        }
+        PlayerPosition(const model::Point& point) 
+            : x_(static_cast<double>(point.x)), y_(static_cast<double>(point.y)) {
+        }
+
+        // добавляет +/- дельту к каждому из полей
+        PlayerPosition& AddRandomPlusMinusDelta(double delta);
+
+        double x_ = 0.0;
+        double y_ = 0.0;
     };
 
     bool operator==(const PlayerPosition& lhs, const PlayerPosition& rhs);
@@ -63,8 +78,8 @@ namespace game_handler {
     // игровой лут, используется для контроля вещей в инвентаре игрока
     struct GameLoot : public model::LootType {
 
-        GameLoot(model::LootType loot_type, size_t type, PlayerPosition position)
-            : model::LootType(loot_type), type_(type), pos_(position) {
+        GameLoot(model::LootType loot_type, size_t type, size_t id, PlayerPosition position)
+            : model::LootType(loot_type), type_(type), id_(id), pos_(position) {
         }
 
         GameLoot(const GameLoot& other) = default;
@@ -83,7 +98,8 @@ namespace game_handler {
         // Назачает игрока, по сути "укладывает" предмет в сумку
         GameLoot& SetPlayerPrt(PlayerPtr player);
 
-        size_t type_;                    // он же индекс в массиве LootTypes на карте
+        size_t type_ = 0;                // он же индекс в массиве LootTypes на карте
+        size_t id_ = 0;                  // id в игровой сессии
         PlayerPosition pos_;             // позиция берется не из модели, а из игрока, так как в модели она в инте, а надо в дабле
         PlayerPtr player_ = nullptr;     // указатель на игрока, у которого вещь находится в сумке, если nullptr - значит на карте
     };
@@ -111,6 +127,9 @@ namespace game_handler {
         Player(Player&&) = default;
         Player& operator=(Player&&) = default;
 
+        Player(size_t id, std::string_view name)
+            : id_(id), name_(name) {
+        };
         Player(size_t id, std::string_view name, const Token* token)
             : id_(id), name_(name), token_(token) {
         };
@@ -120,8 +139,16 @@ namespace game_handler {
 
         // ----------- геттеры и сеттеры общих данных игрока ----------------------
 
+        // назначает id игрока
+        Player& SetId(size_t);
+        // назначает имя игрока
+        Player& SetName(std::string_view);
+        // назначает указатель на уникальный токен игрока
+        Player& SetToken(const Token*);
         // назначает вместимость сумки игрока
         Player& SetBagCapacity(unsigned);
+        // назначает очки игроку
+        Player& SetScore(unsigned);
 
         // возвращает Id игрока
         size_t GetId() const {
