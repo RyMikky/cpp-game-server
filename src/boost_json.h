@@ -34,6 +34,8 @@ namespace json_detail {
 	std::string GetSessionPlayersList(const game_handler::SessionPlayers& players);
 	// возвращает строковое представление json_словаря с информацией о состоянии в указанной сессии
 	std::string GetSessionStateList(const game_handler::SessionPlayers& players, const game_handler::SessionLoots& loots);
+	// возвращает строковое представление json_массива с информацией о игровых рекордах
+	std::string GetRecordsTable(const std::optional<std::vector<postgres::detail::DBGameRecord>>& records);
 
 	namespace detail {
 

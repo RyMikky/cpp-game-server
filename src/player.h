@@ -28,7 +28,7 @@ namespace game_handler {
             : x_(static_cast<double>(point.x)), y_(static_cast<double>(point.y)) {
         }
 
-        // добавляет +/- дельту к каждому из полей
+        // добавляет число в диапазоне от плюс до минус дельты к каждому из полей
         PlayerPosition& AddRandomPlusMinusDelta(double delta);
 
         double x_ = 0.0;
@@ -207,7 +207,7 @@ namespace game_handler {
         // возвращает сумму очков предметов в сумке
         unsigned GetLootTotalValue() const;
 
-        // ----------- геттеры и сеттеры атрибутов состояни игрока ----------------
+        // ----------- геттеры и сеттеры атрибутов состояния игрока ---------------
 
         // назначает текущую позицию игрока
         Player& SetCurrentPosition(PlayerPosition&& position);
@@ -244,12 +244,39 @@ namespace game_handler {
         PlayerSpeed GetSpeed() const {
             return speed_;
         }
+        // возвращает флаг что у чубаки нулевая скорость
+        bool IsStay() const {
+            return speed_.xV_ == 0 && speed_.yV_ == 0;
+        }
 
         // назначает направление игрока
         Player& SetDirection(PlayerDirection&& direction);
         // возвращает текущее направление игрока
         PlayerDirection GetDirection() const {
             return direction_;
+        }
+
+        // ----------- геттеры и сеттеры времени нахождения в игре ----------------
+
+        // назначает общее игровое время в миллисекундах, используется при сериализации
+        Player& SetTotalInGameTimeMS(int time_ms);
+        // добавляет общее игровое время в миллисекундах
+        Player& AddTotalInGameTimeMS(int time_ms);
+        // возвращает общее время проведенное в игре в миллисекундах
+        int GetTotalInGameTimeMS() const {
+            return total_time_ms_;
+        }
+
+        // назначает время простоя в миллисекундах, используется при сериализации
+        Player& SetRetirementTimeMS(int time_ms);
+        // добавляет время простоя в игре в миллисекундах
+        // также увеличивает общее время в игре на указанную величину
+        Player& AddRetirementTimeMS(int time_ms);
+        // сбрасывает время простоя в игре в ноль
+        Player& ResetRetirementTime();
+        // возвращает время простоя в игре в миллисекундах
+        int GetRetirementTimeMS() const {
+            return retirement_time_ms_;
         }
 
     private:
@@ -259,6 +286,9 @@ namespace game_handler {
         unsigned bag_capacity_ = 0;                             // вместимость рюкзака игрока
         unsigned score_ = 0;                                    // общая сумма набранных очков
         PlayerBag bag_ = {};                                    // рюкзак игрока
+        
+        int total_time_ms_ = 0;                                 // время проведенное в игре
+        int retirement_time_ms_ = 0;                            // время простоя с момента остановки
 
         // ---------------------- блок атрибутов состояния персонажа -----------------
         

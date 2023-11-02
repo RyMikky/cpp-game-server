@@ -1,0 +1,31 @@
+# mkdir -p build-release 
+# cd build-release
+# conan install .. --build=missing -s build_type=Release -s compiler.libcxx=libstdc++11
+# cmake .. -DCMAKE_BUILD_TYPE=Release
+# cd ..
+
+# mkdir -p build-debug
+# cd build-debug
+# conan install .. --build=missing -s build_type=Debug -s compiler.libcxx=libstdc++11
+# cmake .. -DCMAKE_BUILD_TYPE=Debug
+# cd ..
+
+Ключи запуска приложения
+All options:
+  -h [ --help ]                     produce help message
+  -t [ --tick-period ] milliseconds set tick period
+  -c [ --config-file ] file         set config file path
+  -w [ --www-root ] dir             set static files root
+  --randomize-spawn-points          spawn dogs at random positions
+  -f [ --test-frame-root ] dir      set test files root
+
+В докере установлен запуск с ключами
+--config-file=/app/data/config.json --www-root=/app/static/
+
+Для проверки в curl
+
+curl -i -v -X POST "http://127.0.0.1:8080/api/v1/game/join" --data "{\"userName\": \"Harry\", \"mapId\": \"map1\"}"
+
+curl -i -v -H "Authorization: Bearer 745d6d54200c0000331d0280541d6d54" "http://127.0.0.1:8080/api/v1/game/state"
+
+curl -i -v -H "Content-Type: application/json" "http://127.0.0.1:8080/api/v1/game/tick" --data "{\"timeDelta\": 5000000 }"

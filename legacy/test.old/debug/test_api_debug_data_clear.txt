@@ -1,4 +1,0 @@
-{
-   "argument": "gameDataStatus",
-   "value": "dataIsClear"
-} 

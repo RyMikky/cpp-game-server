@@ -82,34 +82,29 @@ namespace game_handler {
 	* Запускает полный цикл обработки в следующей последовательности:
 	*  1. Расчёт будущих позиций игроков
 	*  2. Расчёт и выполнение ожидаемых при перемещении коллизий
-	*  3. Выполнение перемещения игроков на будущие координаты
-	*  4. Генерация лута на карте
+	*  3. Удаляет засидевшихся на одном месте игроков
+	*  4. Выполнение перемещения игроков на будущие координаты
+	*  5. Генерация лута на карте
 	*/
 	bool GameSession::UpdateState(int time) {
 		try
 		{
-			// 1. Расчёт будущих позиций игроков, так как задаётся время в миллисекундах
-			// то мы должны перевести данные в дабл в секунды, так как скорость считается в м/с
-			UpdateFuturePlayersPositions(static_cast<double>(time) / __MS_IN_ONE_SECOND__);
+			// 1. Расчёт будущих позиций игроков, время задаётся в миллисекундах
+			UpdateFuturePlayersPositions(time);
 
 			// 2. Расчёт и выполнение ожидаемых при перемещении коллизий
-			// В процессе исполнения будут расчитаны коллизии, выполнены действия по подбору и сдаче предметов лута
+			// В процессе исполнения будут рассчитаны коллизии, выполнены действия по подбору и сдаче предметов лута
 			HandlePlayersCollisionsActions();
 
-			// 3. Выполнение перемещения игроков на расчитаные в пункте 1 будущие координаты
+			// 3. Выполняет удаление всех бездействующих игроков, превысивших лимит времени ожидания
+			UpdateRetirementPlayers();
+
+			// 4. Выполнение перемещения игроков на рассчитанные в пункте 1 будущие координаты
 			UpdateCurrentPlayersPositions();
 
-			// 4. Генерация лута на карте
+			// 5. Генерация лута на карте
 			UpdateSessionLootsCount(time);
 
-			//// запрашиваем количество лута для генерации
-			//auto new_loot_count = loot_gen_.Generate(
-			//	std::chrono::milliseconds(time), 
-			//	static_cast<unsigned>(session_loots_.size()), 
-			//	static_cast<unsigned>(session_players_.size()));
-
-			//// при успешной генерации исключений не будет, и генерация вернет true
-			//return (new_loot_count > 0) ? GenerateSessionLootImpl(new_loot_count) : true;
 			return true;
 		}
 		catch (const std::exception& e)
@@ -188,7 +183,7 @@ namespace game_handler {
 	bool GameSession::CheckStartPositionImpl(PlayerPosition& position) {
 
 		for (const auto& [token, player] : session_players_) {
-			// если нашли поцизию совпадающую с запрошенной то выходим с false
+			// если нашли позицию совпадающую с запрошенной то выходим с false
 			if (position == player.GetCurrentPosition()) {
 				return false;
 			}
@@ -236,24 +231,6 @@ namespace game_handler {
 
 						// отправляем на генерацию
 						GenerateSessionLootImpl(type, unique_id, position);
-
-						//// на основе индекса создаём новый игровой лут
-						//GameLoot loot{ session_map_->GetLootType(type), type, unique_id, {} };
-						//// получаем случайную точку на дорогах карты, точки игровой модели обрабатываются целочислеными значениями
-						//model::Point position = session_map_->GetRandomPosition();
-
-						//loot.pos_.x_ = (position.x + model::GetRandomDoubleRoundOne(-__ROAD_DELTA__, __ROAD_DELTA__));
-						//loot.pos_.y_ = (position.y + model::GetRandomDoubleRoundOne(-__ROAD_DELTA__, __ROAD_DELTA__));
-
-						/*loot.pos_.x_ = position.x;
-						loot.pos_.y_ = position.y;*/
-
-						//// добавляем в список лута в текущей игровой сессии
-						//// уникальным индексом будет как и в случае с игроком, индекс в булевом массиве
-						//session_loots_.emplace(unique_id, std::move(loot));
-
-						//// поднинмаем флаг в булевом массиве по занятой позиции
-						//*id = true;
 					}
 				}
 			}
@@ -287,6 +264,27 @@ namespace game_handler {
 		for (auto& player : session_players_) {
 			// просто обновляем позицию для всех игроков
 			player.second.UpdateCurrentPosition();
+		}
+
+		return true;
+	}
+
+	// выполняет удаление всех бездействующих игроков, превысивших лимит времени ожидания
+	bool GameSession::UpdateRetirementPlayers() {
+		std::vector<const Token*> to_remove;
+
+		for (const auto& [token, player] : session_players_) {
+			// перебираем всех игроков и если превышено время простоя
+			if (player.GetRetirementTimeMS() >= game_handler_.GetRetirementTimeMS()) {
+				// добавляем токен в массив на удаление ибо
+				// напрямую удалить отсюда же нельзя, будет несогласованность данных
+				to_remove.push_back(token);
+			}
+		}
+
+		for (const auto& token : to_remove) {
+			// предоставим запись результатов и удаление основному обработчику
+			game_handler_.ResetToken(token);
 		}
 
 		return true;
@@ -334,6 +332,9 @@ namespace game_handler {
 			// снимаем флаг с булевого вектора лута, чтобы можно было снова создать элемент с таким id
 			loots_id_[loot.index_] = false;
 		}
+
+		// очищаем сумки после сдачи предметов
+		player.ClearBag();
 
 		return true;
 	}
@@ -509,15 +510,26 @@ namespace game_handler {
 		return true;
 	}
 
-	bool GameSession::CalculateFuturePlayerPositionImpl(Player& player, double time) {
-
-		// записываем вектор ожидаемого приращения по положению персонажа
-		PlayerPosition delta_pos{ player.GetCurrentPosition().x_ + (player.GetSpeed().xV_ * time),
-			player.GetCurrentPosition().y_ + (player.GetSpeed().yV_ * time) };
-		// чтобы лишнего не считать, проверяем есть ли у нас какое-то приращение в принципе
-		if (delta_pos.x_ == 0 && delta_pos.y_ == 0) {
-			return true;           // если приращения нет, то сразу выходим и не продолжаем
+	// обновляет позицию выбранного игрока в соответствии с его заданной скоростью, направлением и временем в секундах
+	// принимает время в миллисекундах, перерасчёт будет дальше по коду
+	bool GameSession::CalculateFuturePlayerPositionImpl(Player& player, int time) {
+		
+		// чтобы лишнего не считать, проверяем, а не стоит ли чубака вообще
+		if (player.IsStay() /*&& delta_pos.x_ == 0 && delta_pos.y_ == 0*/) {
+			// если приращения нет, то добавляем время простоя
+			// это возможно если у чубаки нулевая скорость
+			// нулевая скорость становится или после команды {"move": ""}
+			// или после того как чубака уперся в стенку
+			
+			player.AddRetirementTimeMS(time);
+			return true;           
 		}
+
+		player.ResetRetirementTime();           // сбрасываем время простоя
+		double time_in_sec = static_cast<double>(time) / __MS_IN_ONE_SECOND__;
+		// записываем вектор ожидаемого приращения по положению персонажа
+		PlayerPosition delta_pos{ player.GetCurrentPosition().x_ + (player.GetSpeed().xV_ * time_in_sec),
+			player.GetCurrentPosition().y_ + (player.GetSpeed().yV_ * time_in_sec) };
 
 		const model::Road* road = nullptr;    // готовим заготовку под "дорогу"
 		// записываем во временную переменную, чтобы не делать лишних вызовов
@@ -526,6 +538,8 @@ namespace game_handler {
 		PlayerPosition position = player.GetCurrentPosition();
 		// округляем позицию до уровня логики model::Map
 		model::Point point{ detail::RoundDoubleMathematic(position.x_), detail::RoundDoubleMathematic(position.y_) };
+		// добавляем проведенное в игре время в миллисекундах
+		player.AddTotalInGameTimeMS(time);
 
 		// в зависимости от нашего направления запрашиваем дорогу
 		// если игрок смотрит влево или вправо, полагаем, что будет движение по горизонтальной дороге
@@ -550,12 +564,12 @@ namespace game_handler {
 		}
 	}
 
-	// выполняет расчёт и запись будущих позиций игроков в игровой сессии
-	bool GameSession::UpdateFuturePlayersPositions(double time) {
+	// выполняет расчёт и запись будущих позиций игроков в игровой сессии, принимает время в миллисекундах
+	bool GameSession::UpdateFuturePlayersPositions(int time) {
 
 		for (auto& [token, player] : session_players_) {
 			// вызываем метод расчёта будущей позиции игрока
-			// это еще НЕ перемещеие, это намерения о совершаемом в будущем перемещении
+			// это еще НЕ перемещение, это намерения о совершаемом в будущем перемещении
 			CalculateFuturePlayerPositionImpl(player, time);
 		}
 		return true;
@@ -853,7 +867,39 @@ namespace game_handler {
 		return response;
 	}
 
+	// Возвращает ответ со списком рекордов игры
+	http_handler::Response GameHandler::RecordsResponse(http_handler::StringRequest&& req) {
+		// возвращаем базовый лист рекордов с первого элемента и лимитом в установленную константу	
+		return RecordsResponse(std::move(req), { postgres::__RECORDS_LIMIT__ , 0});
+	}
 	
+	// Возвращает ответ со списком рекордов игры с дополнительными параметрами по количеству и отступу
+	http_handler::Response GameHandler::RecordsResponse(http_handler::StringRequest&& req, postgres::detail::ReqParam param) {
+
+		if (req.method_string() != http_handler::Method::GET) {
+			// если у нас ни гет и ни хед запрос, то кидаем отбойник
+			return NotAllowedResponseImpl(std::move(req), http_handler::Method::GET);
+		}
+
+		if (param.limit_ > postgres::__RECORDS_LIMIT__) {
+			// Если maxItems превышает __RECORDS_LIMIT__ = 100
+			return CommonFailResponseImpl(std::move(req), http::status::bad_request,
+				"invalidArgument", "Records list items count limit is overload");
+		}
+
+		http_handler::StringResponse response(http::status::ok, req.version());
+		response.set(http::field::content_type, http_handler::ContentType::APP_JSON);
+		response.set(http::field::cache_control, "no-cache");
+
+		// заполняем тушку ответа с помощью жисонского метода получив данные с базы
+		// пока пробуем в общем потоке игрового обработчика
+		std::string body_str = json_detail::GetRecordsTable(base_.GetGameRecords(param));
+		response.set(http::field::content_length, std::to_string(body_str.size()));
+		response.body() = body_str;
+
+		return response;
+
+	}
 
 	// возвращает уже существующий токен по строковому представлению
 	const Token* GameHandler::GetCreatedToken(const std::string& token) {
@@ -897,18 +943,23 @@ namespace game_handler {
 		return &(insert.first->first);
 	}
 
-	bool GameHandler::ResetToken(std::string_view token) {
+	// удаляет токен, игрока и записывает его рекорд в базу SQL
+	bool GameHandler::ResetToken(const Token* token) {
 		std::lock_guard func_lock(mutex_);
 		return ResetTokenImpl(token);
 	}
 
-	bool GameHandler::ResetTokenImpl(std::string_view token) {
-		Token remove{ std::string(token) };
-
-		// TODO Заглушка, скорее всего корректно работать не будет, надо переделать + удаление в GameSession
+	// удаляет токен, игрока и записывает его рекорд в базу SQL
+	bool GameHandler::ResetTokenImpl(const Token* token) {
+		Token remove{ std::string(**token) };
 
 		if (tokens_list_.count(remove)) {
-			tokens_list_.at(remove)->RemovePlayer(&remove);
+			// берем игрока из игровой сессии
+			auto to_delete = tokens_list_.at(remove)->GetPlayer(token);
+			// передаем данные в базу, чтобы записать результат игрока
+			base_.AddNewPlayerRecord(to_delete->GetName(), to_delete->GetScore(), to_delete->GetTotalInGameTimeMS());
+			// удаляем с сессии и из списка токенов
+			tokens_list_.at(remove)->RemovePlayer(token);
 			return tokens_list_.erase(remove);
 		}
 		else {
@@ -1207,10 +1258,12 @@ namespace game_handler {
 			.SetFuturePosition(std::move(player.GetFuturePosition()))
 			.SetDirection(std::move(player.GetDirection()))
 			.SetSpeed(std::move(player.GetSpeed()))
-			.SetScore(player.GetScore());
+			.SetScore(player.GetScore())
+			.SetTotalInGameTimeMS(player.GetTotalInGameTimeMS())
+			.SetRetirementTimeMS(player.GetRetirementTimeMS());
 
 		for (size_t i = 0; i != player.GetLootCount(); ++i) {
-			// запрашиваем восстанновление лута в инвентаре
+			// запрашиваем восстановление лута в инвентаре
 			RestoreGameLoot(player.GetLootByIndex(i));
 		}
 
@@ -1219,12 +1272,12 @@ namespace game_handler {
 
 	// воссоздаёт игровой лут
 	GameHandler& GameSessionRestoreContext::RestoreGameLoot(const SerializedLoot& loot) {
-		// запрашиваем генерацию лута по заданым параметрам
+		// запрашиваем генерацию лута по заданным параметрам
 		session_->GenerateSessionLootImpl(loot.GetType(), loot.GetId(), loot.GetPosition());
-		// если лут лежал у игрока в инветаре
+		// если лут лежал у игрока в инвентаре
 		if (loot.GetToken() != "onMap") {
-			// запрашиваем размещение лута в интвентаре конкретного игрока
-			// к моменту запроса на восстаовлеие лута, игроки должны быть восстановлены
+			// запрашиваем размещение лута в инвентаре конкретного игрока
+			// к моменту запроса на восстановление лута, игроки должны быть восстановлены
 			session_->PutLootInToTheBag(
 				*(session_->GetPlayer(game_.GetCreatedToken(loot.GetToken()))), loot.GetId()
 			);

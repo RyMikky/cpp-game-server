@@ -1,5 +1,0 @@
-{
-  "0": {"name": "Scooby Doo"},
-  "1": {"name": "Whelma Shnizel"},
-  "2": {"name": "Mega Pups"}
-} 

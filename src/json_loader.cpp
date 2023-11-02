@@ -213,6 +213,17 @@ namespace json_loader {
                 // иначе принимается базовой, равной 3
             }
 
+            if (config.count("dogRetirementTime")) {
+                // назначаем базовое допустимое время простоя игрока
+                // в JSON должен быть дабл в секундах, переводим в миллисекунды в интежер
+                result.SetRetirementTimeMS(static_cast<int>(
+                    config.at("dogRetirementTime").as_double() * game_handler::__MS_IN_ONE_SECOND__));
+            }
+            else {
+                // иначе принимается базовой, равной 1 минуте
+                result.SetRetirementTimeMS(model::__DEFAULT_RETIREMENT_TIME_MS__);
+            }
+
             if (config.count("lootGeneratorConfig")) {
                 // парсим и назначаем настройки генератора лута
                 result.SetLootGenConfig(std::move(

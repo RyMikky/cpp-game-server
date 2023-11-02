@@ -3,6 +3,7 @@
 #include "json_loader.h"
 #include "boost_json.h"
 #include "collision_handler.h"         // через данный хеддер подключается domain.h
+#include "postgres/postgers.h"
 
 #include <vector>
 #include <memory>
@@ -25,6 +26,8 @@ namespace game_handler {
 	namespace http = beast::http;
 	namespace net = boost::asio;
 	namespace sys = boost::system;
+
+	using namespace postgres;
 
 	class GameHandler;                           // forward-definition
 
@@ -146,7 +149,7 @@ namespace game_handler {
 		size_t session_id_;                                 // идентификатор игровой сессии
 		GameHandler& game_handler_;                         // ссылка на базовый игровой обработчик
 		loot_gen::LootGenerator loot_gen_;                  // собственный генератор лута игровой сессии
-		const model::Map* session_map_;                // указатель на карту игровой модели
+		const model::Map* session_map_;                     // указатель на карту игровой модели
 
 		SessionPlayers session_players_;                    // хешированная мапа с игроками
 		std::vector<bool> players_id_;                      // булевый массив индексов игроков
@@ -172,6 +175,9 @@ namespace game_handler {
 		// выполняет обновления текущих позиций игроков согласно расчитанных ранее будущих позиций
 		bool UpdateCurrentPlayersPositions();
 		
+		// выполняет удаление всех бездействующих игроков, превысивших лимит времени ожидания
+		bool UpdateRetirementPlayers();
+
 		// возвращает предметы в офис бюро находок, удаляет их из инвентаря и начисляет очки
 		bool ReturnLootsToTheOfficeImpl(Player& player);
 		// переносит предмет с указанным id в сумку игрока, удаляет предмет с карты
@@ -184,9 +190,10 @@ namespace game_handler {
 		// изменяет координаты игрока при движении перпендикулярно дороге, на которой он стоит
 		bool PlayerCrossMovingImpl(Player& player, PlayerDirection direction, PlayerPosition&& from, PlayerPosition&& to, const model::Road* road);
 		// обновляет позицию выбранного игрока в соответствии с его заданной скоростью, направлением и временем в секундах
-		bool CalculateFuturePlayerPositionImpl(Player& player, double time);
-		// выполняет расчёт и запись будущих позиций игроков в игровой сессии
-		bool UpdateFuturePlayersPositions(double time);
+		// принимает время в миллисекундах, перерасчёт будет дальше по коду
+		bool CalculateFuturePlayerPositionImpl(Player& player, int time);
+		// выполняет расчёт и запись будущих позиций игроков в игровой сессии, принимает время в миллисекундах
+		bool UpdateFuturePlayersPositions(int time);
 	};
 
 	class MapPtrHasher {
@@ -248,10 +255,14 @@ namespace game_handler {
 		friend class GameSessionRestoreContext;
 	public:
 		// отдаём создание игровой модели классу обработчику игры
-		explicit GameHandler(const fs::path& configuration, size_t session_count = __DEFAULT_GAME_SESSIONS_MAX_COUNT__)
+		explicit GameHandler(const fs::path& configuration
+			, postgres::detail::ConnectionConfig&& base_config
+			, size_t session_count = __DEFAULT_GAME_SESSIONS_MAX_COUNT__)
+
 			: game_{ json_loader::LoadGameConfiguration(configuration) }
 			, sessions_id_(session_count)
-			, restore_context_(*this) {
+			, restore_context_(*this)
+			, base_(std::move(base_config)) {
 		}
 
 		// ------------------- блок методов сериализатора ----------------------
@@ -287,8 +298,12 @@ namespace game_handler {
 		http_handler::Response FindMapResponse(http_handler::StringRequest&& req, std::string_view find_request_line);
 		// Возвращает ответ со списком загруженных карт
 		http_handler::Response MapsListResponse(http_handler::StringRequest&& req);
+		// Возвращает ответ со списком рекордов игры
+		http_handler::Response RecordsResponse(http_handler::StringRequest&& req);
+		// Возвращает ответ со списком рекордов игры с дополнительными параметрами по количеству и отступу
+		http_handler::Response RecordsResponse(http_handler::StringRequest&& req, postgres::detail::ReqParam param);
 
-	protected: // протектед блок доступен только friend class -у для обратной записи данных и получения уникальных токенов
+	protected: // протектед блок доступен только friend class -ам для обратной записи данных и получения уникальных токенов
 
 		// возвращает уже существующий токен по строковому представлению
 		const Token* GetCreatedToken(const std::string&);
@@ -297,13 +312,18 @@ namespace game_handler {
 		 * Служит для получения уникального токена при добавлении нового игрока.
 		*/
 		const Token* GetUniqueToken(std::shared_ptr<GameSession> session);
-		// удаляет токен из базы
-		bool ResetToken(std::string_view token);
+		// удаляет токен, игрока и записывает его рекорд в базу SQL
+		bool ResetToken(const Token* token);
+		// возвращает допустимое время простоя игрока в миллисекундах
+		int GetRetirementTimeMS() const {
+			return game_.GetRetirementTimeMS();
+		}
 
 	private:
 		model::Game game_;
 		std::mutex mutex_;
 		GameSessionRestoreContext restore_context_;      // контекст восстановления игровых сессий
+		DataBaseHandler base_;                           // PostgreSQL база данных в которую пишутся рекорды
 
 		GameMapInstance instances_;                      // игровые инстансы по картам
 		GameTokenList tokens_list_;                      // токены с указателями на конкретные сессии
@@ -319,7 +339,7 @@ namespace game_handler {
 		// добавляет конкретный токен с указателем на игровую сессию
 		const Token* AddUniqueTokenImpl(Token&&, std::shared_ptr<GameSession>);
 
-		bool ResetTokenImpl(std::string_view token);
+		bool ResetTokenImpl(const Token* token);
 
 		// возвращает свободный уникальный идентификатор игровой сессии,
 		// применяется при созданнии новых игровых сессий

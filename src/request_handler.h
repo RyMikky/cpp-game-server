@@ -55,7 +55,6 @@ namespace http_handler {
 
         bool timer_enable_ = false;              // флаг активации таймера автоизменения состояния
         bool autosave_enable_ = false;           // флаг активации автосохранения состояния
-        //bool test_enable_ = false;               // флаг доступа тест-системы к ресурсам и api
 
         // метод настройки игрового таймера, генерирует команды для обработки
         RequestHandler& TimerConfigurationPipeline();
@@ -117,6 +116,9 @@ namespace http_handler {
         Response HandleTestRequest(StringRequest&& req, std::string_view api_request_line);
 
         // ------------------------------ блок парсинга и базовой обработки -----------------------------
+
+        // парсит дополнительные аргументы URL запроса к базе данных
+        postgres::detail::ReqParam ParseDataBaseRequest(std::string_view line);
 
         template <typename Iterator>
         std::string ParseRequestTarget(Iterator begin, Iterator end);
@@ -252,27 +254,6 @@ namespace http_handler {
             || req.target().substr(0, 12) == "/test_frame/"sv) {
 
             // Старая сквозная тест система полностью отключена и доступ по REST API "/test_frame" закрыт
-
-            //if (test_enable_) {
-            //    // создаём лямбду с шароварным указателем на экземпляр класса (экземпляр должен быть в куче, иначе все упадет!)
-            //    // + Callback&&, плюс реквест. Чтобы не создавать экземпляр реквеста (лямбда по дефолту преобразует в const Type
-            //    // в std::forward указываем конкретный тип и задаем его "mutable"
-            //    auto handle = [self = shared_from_this(), send, request = std::forward<StringRequest&&>(req)]() mutable {
-
-            //        try {
-            //            // Этот assert не выстрелит, так как лямбда-функция будет выполняться внутри strand
-            //            assert(self->api_strand_.running_in_this_thread());
-            //            return send(self->HandleTestRequest(std::forward<StringRequest&&>(request),
-            //                { request.target().begin() + 11, request.target().end() }));
-            //        }
-            //        catch (...) {
-            //            send(self->StaticBadRequestResponse(std::forward<StringRequest&&>(request)));
-            //        }
-            //    };
-
-            //    // важно не забыть задиспатчить всё что происходит в стренде. по сути похоже на футур
-            //    return net::dispatch(api_strand_, handle);
-            //}
 
             // если тестовая система не заявлена в конфигурации и не поднят её флаг, то доступ закрыт
             return send(DebugCommonFailResponse(std::move(req), http::status::bad_request, "badRequest"sv, "Invalid endpoint"sv, ""sv));

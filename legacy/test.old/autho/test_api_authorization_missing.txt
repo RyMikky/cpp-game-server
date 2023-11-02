@@ -1,4 +1,0 @@
-{
-   "code": "invalidToken",
-   "message": "Authorization header is missing"
-} 

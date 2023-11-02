@@ -158,6 +158,25 @@ namespace json_detail {
 		return json::serialize(json::object{ {"players", players_list}, {"lostObjects", loots_list } });
 	}
 
+	// возвращает строковое представление json_массива с информацией о игровых рекордах
+	std::string GetRecordsTable(const std::optional<std::vector<postgres::detail::DBGameRecord>>& records) {
+		json::array result;
+
+		if (records.has_value()) {
+			for (const auto& record : records.value()) {
+				json::object item;
+
+				item.emplace("name", record.name_);
+				item.emplace("score", record.score_);
+				item.emplace("playTime", (static_cast<double>(record.time_ms_) / game_handler::__MS_IN_ONE_SECOND__));
+
+				result.push_back(item);
+			}
+		}
+
+		return json::serialize(result);
+	}
+
 	namespace detail {
 
 		// возвращает json-словарь с информацией по конкретному аргументу

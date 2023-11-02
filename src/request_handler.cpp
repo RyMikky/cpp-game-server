@@ -3,6 +3,21 @@
 
 namespace http_handler {
 
+    // простые запросы без доп парсинга
+
+    static const std::string __REST_API_MAPS__ = "/v1/maps";
+    static const std::string __REST_API_JOIN__ = "/v1/game/join";
+    static const std::string __REST_API_PLAYERS__ = "/v1/game/players";
+    static const std::string __REST_API_TICK__ = "/v1/game/tick";
+    static const std::string __REST_API_STATE__ = "/v1/game/state";
+    static const std::string __REST_API_PLAYER_ACTION__ = "/v1/game/player/action";
+    static const std::string __REST_API_RECORDS__ = "/v1/game/records";
+
+    // запросы с дополнительной информацией
+
+    static const std::string __REST_API_FIND_MAP__ = "/v1/maps/";
+    static const std::string __REST_API_RECORDS_PARAMS__ = "/v1/game/records?";
+
     // включает выполнение автотаймера, выкидывает исклоючение, если таймер уже включен
     RequestHandler& RequestHandler::StartGameTimer() {
         if (timer_enable_) {
@@ -110,8 +125,11 @@ namespace http_handler {
 
         try
         {
+            // создаём конфиг подключения к базе данных
+            postgres::detail::ConnectionConfig db_config{ arguments_.data_base_url, arguments_.db_connection_count };
+
             // загружаем настройки игровой модели
-            game_ = std::make_shared<game::GameHandler>(arguments_.config_json_path);
+            game_ = std::make_shared<game::GameHandler>(arguments_.config_json_path, std::move(db_config));
 
             // задаём игровой обработчик в сериализатор
             serializer_ = std::make_shared<game::SerialHandler>(game_);
@@ -127,8 +145,6 @@ namespace http_handler {
 
             // загружаем статические данные в менеджер файлов
             resource_ = std::make_shared<res::ResourceHandler>(arguments_.static_content_path);
-            //// устанавливаем флаг запуска тест-системы
-            //test_enable_ = arguments_.test_frame_launch;
 
             return TimerConfigurationPipeline();
         }
@@ -458,22 +474,22 @@ namespace http_handler {
             return DebugCommonFailResponse(std::move(req), http::status::bad_request, "badRequest"sv, "Bad request"sv, ""sv);
         }
 
-        if (api_request_line == "/v1/maps"sv) {
+        if (api_request_line == __REST_API_MAPS__) {
             // выводим список доступных карт
             return game_->MapsListResponse(std::move(req));
         }
 
-        if (api_request_line == "/v1/game/join"sv) {
+        if (api_request_line == __REST_API_JOIN__) {
             // обрабатываем запрос по присоединению к игре
             return game_->JoinGameResponse(std::move(req));
         }
 
-        if (api_request_line == "/v1/game/players"sv) {
+        if (api_request_line == __REST_API_PLAYERS__) {
             // обрабатываем запрос по выдаче информации о подключенных игроках к сессии
             return game_->PlayersListResponse(std::move(req));
         }
 
-        if (api_request_line == "/v1/game/tick"sv) {
+        if (api_request_line == __REST_API_TICK__) {
             if (timer_enable_) {
                 // если активирован таймер, то кидаем отбойник на подобный запрос
                 return DebugCommonFailResponse(std::move(req), http::status::bad_request, "badRequest"sv, "Invalid endpoint"sv, ""sv);
@@ -481,29 +497,39 @@ namespace http_handler {
             // обрабатываем запрос по изменению состояния игровой сессии со временем
             return HandleSpecialCoopMethods(std::move(this->SerializeGameData()),
                 std::move(game_->SessionsUpdateResponse(std::move(req))));
-
-            /*return HandleSpecialCoopMethods(
-                std::move(game_->SessionsUpdateResponse(std::move(req))),
-                std::move(this->SerializeGameData()));*/
-            //return game_->SessionsUpdateResponse(std::move(req));
         }
 
-        if (api_request_line == "/v1/game/state"sv) {
+        if (api_request_line == __REST_API_STATE__) {
             // обрабатываем запрос по получению инфы о игровом состоянии персонажей
             return game_->GameStateResponse(std::move(req));
         }
 
-        if (api_request_line == "/v1/game/player/action"sv) {
+        if (api_request_line == __REST_API_PLAYER_ACTION__) {
             // обрабатываем запрос по совершению действий персонажем
             return game_->PlayerActionResponse(std::move(req));
         }
 
+        if (api_request_line == __REST_API_RECORDS__) {
+            // обрабатываем запрос на выдачу таблицы рекордов без параметров
+            return game_->RecordsResponse(std::move(req));
+        }
+
         // важный момент парсинга - блок сработает только если строка больше 9 символов и первые слова "/v1/maps/"
         // по идее сюда можно добавлять разные элементы, если их будет много то имеет смысл сделать специализированный парсер
-        if (api_request_line.size() >= 9 && std::string{ api_request_line.begin(),  api_request_line.begin() + 9 } == "/v1/maps/"sv) {
+        if (api_request_line.size() >= (__REST_API_FIND_MAP__.size()) 
+            && std::string{ api_request_line.begin(),  api_request_line.begin() + __REST_API_FIND_MAP__.size() } == __REST_API_FIND_MAP__) {
             // отправляемся на поиски запрошенной карты
             return game_->FindMapResponse(std::move(req),
-                { api_request_line.begin() + 9, api_request_line.end() });
+                { api_request_line.begin() + __REST_API_FIND_MAP__.size()
+                , api_request_line.end() });
+        }
+
+        if (api_request_line.size() >= __REST_API_RECORDS_PARAMS__.size() 
+            && std::string{api_request_line.begin(),  api_request_line.begin() + __REST_API_RECORDS_PARAMS__.size() } == __REST_API_RECORDS_PARAMS__) {
+            // обрабатываем запрос на выдачу таблицы рекордов с параметрами
+            return game_->RecordsResponse(std::move(req)
+                , ParseDataBaseRequest({ api_request_line.begin() + __REST_API_RECORDS_PARAMS__.size()
+                    , api_request_line.end() }));
         }
 
         // на крайний случай просто скажем, что запрос плохой
@@ -557,5 +583,46 @@ namespace http_handler {
         return DebugCommonFailResponse(std::move(req), http::status::bad_request, "badRequest"sv, "Bad request"sv, ""sv);
     }
 
+    static const std::string __PARAM_OFFSET__ = "start=";
+    static const std::string __PARAM_LIMIT__ = "maxItems=";
+
+    // парсит дополнительные аргументы URL запроса к базе данных
+    postgres::detail::ReqParam RequestHandler::ParseDataBaseRequest(std::string_view line) {
+        postgres::detail::ReqParam result;
+
+        auto offset_pos = line.find(__PARAM_OFFSET__);
+        auto limit_pos = line.find(__PARAM_LIMIT__);
+
+        if (offset_pos != std::string::npos) {
+            std::string_view offset_sub{ line.begin() + offset_pos + __PARAM_OFFSET__.size(), line.end() };
+
+            auto sep_pos = offset_sub.find("&");
+            if (sep_pos != std::string::npos) {
+                result.offset_ = std::stoi(std::string(offset_sub.begin(), offset_sub.begin() + sep_pos));
+            }
+            else {
+                result.offset_ = std::stoi(std::string(offset_sub.begin(), offset_sub.end()));
+            }
+        }
+
+        /*
+        * Если будет больше параметров, то можно сделать функцию которая будет парсить параметры беря их заготовки из константной мапы
+        * Пока параметра всего два и мы точно знаем какие, можно ограничиться этим решением.
+        */
+
+        if (limit_pos != std::string::npos) {
+            std::string_view limit_sub{ line.begin() + limit_pos + __PARAM_LIMIT__.size(), line.end() };
+
+            auto sep_pos = limit_sub.find("&");
+            if (sep_pos != std::string::npos) {
+                result.limit_ = std::stoi(std::string(limit_sub.begin(), limit_sub.begin() + sep_pos));
+            }
+            else {
+                result.limit_ = std::stoi(std::string(limit_sub.begin(), limit_sub.end()));
+            }
+        }
+
+        return result;
+    }
 
 }  // namespace http_handler

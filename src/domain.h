@@ -5,6 +5,7 @@
 
 #include "sdk.h"
 #include "player.h"
+#include "postgres/postgers.h"
 // boost.beast будет использовать std::string_view вместо boost::string_view
 #define BOOST_BEAST_USE_STD_STRING_VIEW
 
@@ -277,7 +278,9 @@ namespace game_handler {
 			, cur_pos_(SerializitedPlayerPosition{ player.GetCurrentPosition() })
 			, fut_pos_(SerializitedPlayerPosition{ player.GetFuturePosition() })
 			, dir_(SerializitedPlayerDirection{ player.GetDirection() })
-			, speed_(SerializitedPlayerSpeed{ player.GetSpeed() }) {
+			, speed_(SerializitedPlayerSpeed{ player.GetSpeed() })
+			, total_time_ms_(player.GetTotalInGameTimeMS())
+			, retirement_time_ms_(player.GetRetirementTimeMS()) {
 		}
 
 		/*
@@ -327,6 +330,14 @@ namespace game_handler {
 		PlayerSpeed GetSpeed() const {
 			return speed_.Restore();
 		}
+		// возвращает общее время проведенное в игре
+		int GetTotalInGameTimeMS() const {
+			return total_time_ms_;
+		}
+		// возвращает время простоя в игре
+		int GetRetirementTimeMS() const {
+			return retirement_time_ms_;
+		}
 
 		template <typename Archive>
 		void serialize(Archive& ar, [[maybe_unused]] const unsigned version) {
@@ -342,6 +353,9 @@ namespace game_handler {
 			ar& fut_pos_;
 			ar& dir_;
 			ar& speed_;
+
+			ar& total_time_ms_;
+			ar& retirement_time_ms_;
 		}
 
 	private:
@@ -357,6 +371,9 @@ namespace game_handler {
 		SerializitedPlayerPosition fut_pos_;
 		SerializitedPlayerDirection dir_;
 		SerializitedPlayerSpeed speed_;
+
+		int total_time_ms_ = 0;
+		int retirement_time_ms_ = 0;
 
 		// производит вектор лута для класса сериализации
 		std::vector<SerializedLoot> MakeLootVector(const Player& player);

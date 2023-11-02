@@ -1,4 +1,0 @@
-{
-    "code": "badRequest",
-    "message": "Bad request"
-}

@@ -1,4 +1,0 @@
-{ 
-  "code": "invalidArgument", 
-  "message": "Request body whit argument <timeDelta> expected"
-} 

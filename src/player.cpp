@@ -4,7 +4,7 @@
 
 namespace game_handler {
 
-    // добавляет +/- дельту к каждому из полей
+    // добавляет число в диапазоне от плюс до минус дельты к каждому из полей
     PlayerPosition& PlayerPosition::AddRandomPlusMinusDelta(double delta) {
         x_ += model::GetRandomDoubleRoundOne(-delta, delta);
         y_ += model::GetRandomDoubleRoundOne(-delta, delta);
@@ -134,8 +134,9 @@ namespace game_handler {
         if (!bag_[index].IsDummy()) {
             
             BagItem result = bag_[index];                // изымаем указатель обратно
-            score_ += result.loot_->GetRawValue();          // прибавляем очки к счету игрока
-            RemoveLoot(index);                           // затираем данные о элементе
+            score_ += result.loot_->GetRawValue();       // прибавляем очки к счету игрока
+            // удалять будем всё скопом потом
+            //RemoveLoot(index);                           // затираем данные о элементе
             return result;
         }
 
@@ -233,6 +234,38 @@ namespace game_handler {
     // назначает направление игрока
     Player& Player::SetDirection(PlayerDirection&& direction) {
         direction_ = std::move(direction);
+        return *this;
+    }
+
+    // назначает общее игровое время в миллисекундах, используется при сериализации
+    Player& Player::SetTotalInGameTimeMS(int time_ms) {
+        total_time_ms_ = time_ms;
+        return *this;
+    }
+
+    // добавляет общее игровое время в миллисекундах
+    Player& Player::AddTotalInGameTimeMS(int time_ms) {
+        total_time_ms_ += time_ms;
+        return *this;
+    }
+
+    // назначает время простоя в миллисекундах, используется при сериализации
+    Player& Player::SetRetirementTimeMS(int time_ms) {
+        retirement_time_ms_ = time_ms;
+        return *this;
+    }
+
+    // добавляет время простоя в игре в миллисекундах
+    // также увеличивает общее время в игре на указанную величину
+    Player& Player::AddRetirementTimeMS(int time_ms) {
+        retirement_time_ms_ += time_ms;
+        total_time_ms_ += time_ms;
+        return *this;
+    }
+
+    // сбрасывает время простоя в игре в ноль
+    Player& Player::ResetRetirementTime() {
+        retirement_time_ms_ = 0;
         return *this;
     }
 

@@ -5,7 +5,7 @@ VisualStudioVersion = 17.5.33530.505
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpp-game-server", "src\src.vcxproj", "{D6AF5272-E70A-4E45-A112-FCBD64731DE6}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test", "test\test.vcxproj", "{93C7C785-FF5A-4854-ABEE-7F19EC7188FF}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "all_catch_testes", "test\test.vcxproj", "{93C7C785-FF5A-4854-ABEE-7F19EC7188FF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,4 +1,0 @@
-{
-   "code": "mapNotFound",
-   "message": "Map not found"
-}

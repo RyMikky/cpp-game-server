@@ -2,13 +2,17 @@
 
 #include <boost/program_options.hpp>
 
+#include <vector>
+#include <thread>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <vector>
 
 using namespace std::literals;
 
 namespace detail {
+
+    constexpr const char DB_URL_ENV_NAME[]{ "GAME_DB_URL" };
 
     [[nodiscard]] Arguments ParseCommandLine(int argc, const char* const argv[]) {
         namespace po = boost::program_options;
@@ -23,7 +27,7 @@ namespace detail {
             ("state-file,s", po::value(&arguments_.state_file_path)->value_name("state"), "set serialize file path")
             ("save-state-period,p", po::value(&arguments_.save_state_period)->value_name("milliseconds"), "set serialize period")
             ("randomize-spawn-points", "spawn dogs at random positions")
-            /*("test-frame-root,f", po::value(&arguments_.test_content_path)->value_name("dir"), "set test files root")*/;
+            ("db-url,d", po::value(&arguments_.data_base_url)->value_name("dir"), "set SQL data base url ");
 
         po::variables_map variables_map_;
         po::store(po::parse_command_line(argc, argv, description_), variables_map_);
@@ -38,6 +42,21 @@ namespace detail {
         if (!variables_map_.contains("www-root"s)) {
             throw std::runtime_error("Static files directory have not been specified"s);
         }
+
+        // если не задан файл конфига кидаем исключение
+        if (!variables_map_.contains("db-url"s)) {
+            // можно подключиться к базе через ключ, или через переменную окружения
+            if (const auto* url = std::getenv(DB_URL_ENV_NAME)) {
+                arguments_.data_base_url = url;
+            }
+            else {
+            	std::cerr << DB_URL_ENV_NAME << " environment variable not found" << std::endl;
+                throw std::runtime_error(DB_URL_ENV_NAME + " environment variable not found"s);
+            }
+        }
+
+        // назначаем количество доступных соединений к базе по числу ядер процессора
+        arguments_.db_connection_count = std::thread::hardware_concurrency();
 
         // прочие необязательные флаги
 
@@ -55,11 +74,6 @@ namespace detail {
             // активируем автообновление игрового состояния
             arguments_.game_timer_launch = true;
         }
-
-        //if (variables_map_.contains("test-frame-root"s)) {
-        //    // активируем запуск сквозных тестов на старте
-        //    arguments_.test_frame_launch = true;
-        //}
 
         if (variables_map_.contains("help"s)) {
             std::cout << description_;

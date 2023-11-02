@@ -11,6 +11,9 @@
 
 namespace model {
 
+    // базовое время бездействия 1 минута - 60000 миллисекунд
+    static const int __DEFAULT_RETIREMENT_TIME_MS__ = 60000; 
+
     using Dimension = int;
     using Coord = Dimension;
 
@@ -400,6 +403,14 @@ namespace model {
         loot_gen::LootGeneratorConfig GetLootGenConfig() const {
             return loot_gen_config_;
         }
+        // устанавливает базовое допустимое время бездействия игрока 
+        void SetRetirementTimeMS(int time_ms) {
+            default_retirement_time_ms_ = time_ms;
+        }
+        // возвращает базовое допустимое время бездействия игрока 
+        int GetRetirementTimeMS() const {
+            return default_retirement_time_ms_;
+        }
 
     private:
         using MapIdHasher = util::TaggedHasher<Map::Id>;
@@ -410,6 +421,7 @@ namespace model {
         
         double default_dog_speed_;                                       // Базовая пёсья скорость перемещения на картах
         unsigned default_bag_capacity_ = 3;                              // Базовая вместимость сумки на песеле
+        int default_retirement_time_ms_ = 0;                             // Базовое допустимое время бездействия игрока
         loot_gen::LootGeneratorConfig loot_gen_config_;                  // Файл конфигурации генератора лута
     };
 

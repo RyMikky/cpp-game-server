@@ -1,6 +1,10 @@
-bin/
-obj/
-packages/
-.vs/
+build/
 backup/
-000.backup/
+build-debug/
+build-release/
+debug/
+release/
+.vscode/
+.vs/
+*.gsa
+*.sln
